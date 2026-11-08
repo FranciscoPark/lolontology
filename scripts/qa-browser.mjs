@@ -344,7 +344,7 @@ try {
     await send('Network.setBlockedURLs', {urls: []});
     return `삭제 후 백엔드 차단 상태: ${status}`;
   });
-  await check('온톨로지 빈 결과·미주석·패치 불일치 상태 구분', async () => {
+  await check('온톨로지 빈 결과·미주석·패치 선택 상태 구분', async () => {
     await load(base + '#ontology');
     await waitFor(`document.querySelector('#data-status').textContent.includes('공식')`, 30000);
     const setQuery = (query, patch = '') =>
@@ -355,11 +355,15 @@ try {
     assert((await text('#ontology-results')).includes('조회 결과가 없습니다'), '빈 결과 상태 없음');
     await setQuery('Rell');
     assert((await text('#ontology-results .review-badge')).includes('의미 주석 없음'), '미주석 배지 없음');
+    const patches = await evaluate(`[...document.querySelectorAll('#ontology-patch option')].map(o => o.value)`);
+    assert(patches[0] === '' && patches.slice(1).every(v => /^\d+\.\d+\.\d+$/.test(v)), `패치 선택지: ${patches}`);
     await setQuery('Ahri', '1.0.0');
-    assert((await text('#ontology-results')).includes('요청 패치가 다릅니다'), '패치 불일치 안내 없음');
+    assert((await evaluate(`document.querySelector('#ontology-patch').value`)) === '', '로드되지 않은 패치가 선택됨');
+    await setQuery('Ahri', patches[1]);
+    assert((await text('#ontology-results .ontology-card h3')) === '아리', '로드된 패치 필터 결과 없음');
     await setQuery('Ahri');
     await waitFor(`document.querySelectorAll('#ontology-graph [data-graph-node]').length > 0`);
-    return '빈 결과 / 의미 주석 없음 / 패치 불일치 / 그래프';
+    return `빈 결과 / 의미 주석 없음 / 패치 선택지 ${patches.slice(1).join(', ')} / 그래프`;
   });
   await check('앱 런타임 오류 없음', async () => {
     assert(appErrors.length === 0, appErrors.join(' | '));

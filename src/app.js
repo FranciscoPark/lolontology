@@ -166,10 +166,19 @@ async function renderOntologyGraph(type, id, filters = {}) {
         : '';
   host.innerHTML = `${warning ? `<p class="graph-warning">${esc(warning)}</p>` : ''}<div class="ontology-svg-scroll"><svg class="ontology-svg" viewBox="0 0 960 550" role="img" aria-label="${esc(entity.name || entity.id)} 관계 그래프"><defs><marker id="graph-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#648278"/></marker></defs>${lines}${nodes}${node(center.x, center.y, 42, entity.type, entity.id, entity.name || entity.id, entity.type === 'Ability' ? `스킬 · ${entity.slot}` : typeName(entity.type), true)}</svg></div><p class="graph-caption">선의 방향은 관계의 방향입니다. ${data.truncated ? `직접 연결 ${data.total}개 중 ${n}개 표시 · 관계·역할 필터로 좁혀 보세요` : `직접 연결 ${n}개`} · 노드를 선택하면 해당 항목 중심으로 이동합니다.</p>${details}`;
 }
+// 패치 필터는 현재 로드된 Data Dragon 버전만 고를 수 있다. 카탈로그가 바뀌면 사라진 버전 선택은 해제한다.
+function syncPatchOptions() {
+  const select = $('#ontology-patch'),
+    selected = select.value,
+    versions = ontologyInfo(ontology).versions;
+  select.innerHTML = `<option value="">전체 로드 패치</option>${versions.map(version => `<option value="${esc(version)}">${esc(version)}</option>`).join('')}`;
+  select.value = versions.includes(selected) ? selected : '';
+}
 function renderOntology() {
+  syncPatchOptions();
   const type = $('#ontology-type').value,
     q = $('#ontology-query').value.trim(),
-    patch = $('#ontology-patch').value.trim(),
+    patch = $('#ontology-patch').value,
     role = $('#ontology-role').value,
     relationship = $('#ontology-relationship').value,
     root = $('#ontology-results');
@@ -458,7 +467,7 @@ $('#ontology-results').addEventListener('click', e => {
     renderOntologyGraph(el.dataset.focusType, el.dataset.focusId, {
       role: $('#ontology-role').value,
       relationship: $('#ontology-relationship').value,
-      patch: $('#ontology-patch').value.trim(),
+      patch: $('#ontology-patch').value,
     });
 });
 $('#ontology-graph').addEventListener('click', e => {
@@ -467,7 +476,7 @@ $('#ontology-graph').addEventListener('click', e => {
     renderOntologyGraph(el.dataset.graphType, el.dataset.graphId, {
       role: $('#ontology-role').value,
       relationship: $('#ontology-relationship').value,
-      patch: $('#ontology-patch').value.trim(),
+      patch: $('#ontology-patch').value,
     });
 });
 $('#ontology-graph').addEventListener('keydown', e => {
@@ -477,12 +486,13 @@ $('#ontology-graph').addEventListener('keydown', e => {
     renderOntologyGraph(el.dataset.graphType, el.dataset.graphId, {
       role: $('#ontology-role').value,
       relationship: $('#ontology-relationship').value,
-      patch: $('#ontology-patch').value.trim(),
+      patch: $('#ontology-patch').value,
     });
   }
 });
 $('#ontology-type').addEventListener('change', renderOntology);
 $('#ontology-role').addEventListener('change', renderOntology);
+$('#ontology-patch').addEventListener('change', renderOntology);
 $('#ontology-relationship').addEventListener('change', renderOntology);
 $('#back-to-draft').onclick = () => setPage('banpick');
 for (const key of ['region', 'tier', 'patch'])

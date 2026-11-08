@@ -102,7 +102,7 @@
 | 6.5 | `[Fix]` `[lane:fast]` `[tdd:required]` API 오류 처리. `localhost`로 접속하면 API가 텍스트 `Forbidden`을 반환하고 브라우저가 JSON 파싱 오류를 보인다. Host 허용에 `localhost`를 추가하거나 JSON 오류를 반환하고, 클라이언트는 비JSON 응답을 읽을 수 있는 메시지로 바꾼다. 새로고침 버튼이 클릭 이벤트를 옵션 객체로 넘기는 우연한 동작도 정리한다. | `localhost`와 `127.0.0.1` 모두 의도한 동작을 하고, 403·비JSON 응답이 원인을 설명하는 메시지로 표시된다. | - | cc:完了 |
 | 6.6 | `[QA]` `[lane:fast]` `[tdd:required]` `serve.mjs` 라우팅 테스트(경로 탈출·dotfile·Host/Origin 403·본문 크기 제한)와 템플릿 아이템 ID의 현재 패치 존재 검사(`npm run validate-data`)를 추가한다. | 서버 보안 규칙이 테스트로 고정되고, 패치 변경 시 사라진 템플릿 아이템을 명령 하나로 확인한다. | - | cc:完了 |
 | 6.7 | `[Setup]` `[lane:fast]` `[tdd:skip:tooling-config]` ESLint와 CI(test·check·build·smoke)를 추가하고 원격 저장소를 연결한다. | PR마다 네 검사가 자동 실행된다. | 0.2 | cc:TODO |
-| 6.8 | `[UX]` `[lane:fast]` `[tdd:skip:ui-polish]` 온톨로지 패치 필터를 자유 입력 대신 로드된 버전 선택으로 바꾸고, 예제 카탈로그의 낡은 아이템 이름(6655 루덴의 동반자→루덴의 메아리)을 고친다. | 존재하지 않는 패치를 입력해 빈 결과를 보는 경로가 없다. | - | cc:TODO |
+| 6.8 | `[UX]` `[lane:fast]` `[tdd:skip:ui-polish]` 온톨로지 패치 필터를 자유 입력 대신 로드된 버전 선택으로 바꾸고, 예제 카탈로그의 낡은 아이템 이름(6655 루덴의 동반자→루덴의 메아리)을 고친다. | 존재하지 않는 패치를 입력해 빈 결과를 보는 경로가 없다. | - | cc:完了 |
 
 ## 결합 전 release gates
 
