@@ -321,3 +321,18 @@ test('every relationship and role option offered by the ontology page is accepte
     for (const role of options('ontology-role'))
       assert.doesNotThrow(() => searchOntology(graph, 'champion', '', '', 5, {role, relationship}), relationship);
 });
+
+test('recipe components missing from the loaded catalog create no dangling BUILDS_FROM edges', () => {
+  const catalog = fallbackCatalog();
+  catalog.items['3078'] = {...catalog.items['3078'], from: ['3057', '1055', '9999999']};
+  const graph = createOntology(catalog);
+  const trinity = ontologyNeighborhood(graph, 'Item', '3078', {relationship: 'BUILDS_FROM'});
+  assert.deepEqual(
+    trinity.relations.map(edge => edge.targetId),
+    ['1055'],
+  );
+  assert.ok(
+    graph.edges.every(edge => graph.nodes.has(edge.from) && graph.nodes.has(edge.to)),
+    'dangling edge',
+  );
+});

@@ -1,0 +1,84 @@
+{
+  "description": "고정 평가 시나리오. 실제 경기 레이블이 아니라 제약·설명·민감도 검증용 입력이다.",
+  "scenarios": [
+    {"id": "empty-mid", "role": "MID"},
+    {
+      "id": "example-physical-allies",
+      "role": "MID",
+      "allies": ["Garen", "LeeSin", null, "Jinx", "Lulu"],
+      "enemies": ["Aatrox", "Vi", "Ahri", null, "Soraka"],
+      "bans": ["Yasuo", "Zed"],
+      "pool": ["Orianna", "Syndra", "Galio", "Viktor"],
+      "personal": {
+        "Orianna": {"preference": 2, "mastery": 3},
+        "Syndra": {"preference": 1, "mastery": 2},
+        "Galio": {"preference": 0, "mastery": 1},
+        "Viktor": {"preference": 0, "mastery": 0}
+      },
+      "own": "Orianna"
+    },
+    {
+      "id": "magic-heavy-enemies-adc",
+      "role": "ADC",
+      "enemies": ["Malphite", "Lillia", "Syndra", null, "Leona"],
+      "own": "Jinx"
+    },
+    {
+      "id": "sustain-enemies-mage",
+      "role": "MID",
+      "enemies": ["Aatrox", "Darius", null, null, "Soraka"],
+      "own": "Syndra"
+    },
+    {
+      "id": "frontline-enemies-marksman",
+      "role": "ADC",
+      "enemies": ["Ornn", "Sejuani", null, null, "Braum"],
+      "own": "Caitlyn"
+    },
+    {
+      "id": "engage-enemies-support",
+      "role": "SUPPORT",
+      "allies": ["Shen", "Amumu", "Orianna", "Jinx", null],
+      "enemies": ["Malphite", "JarvanIV", "Galio", null, "Leona"],
+      "own": "Janna"
+    },
+    {
+      "id": "pool-only-top",
+      "role": "TOP",
+      "poolOnly": true,
+      "pool": ["Garen", "Darius", "Rell"],
+      "personal": {"Darius": {"preference": 2, "mastery": 3}}
+    },
+    {
+      "id": "unannotated-pool-with-role",
+      "role": "SUPPORT",
+      "pool": ["Rell", "Thresh"],
+      "personal": {"Rell": {"preference": 2, "mastery": 3, "roles": ["SUPPORT"]}},
+      "own": "Rell"
+    },
+    {
+      "id": "unannotated-pool-wrong-role",
+      "role": "MID",
+      "pool": ["Rell", "Ahri"],
+      "personal": {"Rell": {"preference": 2, "mastery": 3, "roles": ["SUPPORT"]}}
+    },
+    {
+      "id": "many-bans-jungle",
+      "role": "JUNGLE",
+      "bans": ["LeeSin", "Vi", "JarvanIV", "Amumu", "Sejuani", "Khazix", null, null, null, null],
+      "enemies": [null, "Lillia", null, null, null]
+    },
+    {
+      "id": "unknown-enemies-only",
+      "role": "MID",
+      "enemies": ["Zoe", "Smolder", "Hwei", null, null],
+      "own": "Ahri"
+    },
+    {
+      "id": "jungle-own-fighter",
+      "role": "JUNGLE",
+      "enemies": ["Gwen", "Lillia", "Akali", null, "Nami"],
+      "own": "Vi"
+    }
+  ]
+}

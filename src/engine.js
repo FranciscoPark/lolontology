@@ -89,7 +89,22 @@ export function composition(ids) {
     total: ids.filter(Boolean).length,
   };
 }
-export function recommendPicks(state, catalog) {
+// 평가용 근거 그룹. recommendPicks(state, catalog, {exclude: ['personal']})처럼 그룹을 빼고 순위를 비교한다.
+export const RULE_GROUPS = {
+  personal: ['pool', 'preference', 'mastery'],
+  composition: [
+    'frontline',
+    'engage',
+    'peel',
+    'waveclear',
+    'damage-magic',
+    'damage-physical',
+    'anti-engage',
+    'sustained',
+  ],
+};
+export function recommendPicks(state, catalog, {exclude = []} = {}) {
+  const excluded = new Set(exclude.flatMap(group => RULE_GROUPS[group] || []));
   const own = ROLES.indexOf(state.role),
     other = state.allies.filter((_, i) => i !== own),
     ally = composition(other),
@@ -158,11 +173,12 @@ export function recommendPicks(state, catalog) {
       if (ally.unknown + enemy.unknown) cautions.push('의미 주석이 없는 챔피언은 조합 평가에서 제외됩니다');
       if (personal?.mastery === null || personal?.mastery === undefined)
         cautions.push('숙련도 미입력: 챔피언 풀 포함 여부를 숙련도로 간주하지 않습니다');
+      const kept = reasons.filter(reason => !excluded.has(reason.rule));
       return {
         ...c,
-        score: reasons.reduce((s, r) => s + r.points, 0),
+        score: kept.reduce((s, r) => s + r.points, 0),
         dataStatus: annotated ? 'annotated' : 'insufficient',
-        reasons,
+        reasons: kept,
         cautions,
         ruleVersion: RULE_VERSION,
       };

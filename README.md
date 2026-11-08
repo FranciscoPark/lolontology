@@ -80,6 +80,7 @@ npm run format   # Prettier 적용
 npm run smoke    # dist 빌드 후 headless Chrome에서 콘솔 오류·첫 화면 렌더링 확인
 npm run qa       # 로컬 서버 + headless Chrome으로 사용자 흐름 17개 검사 (Node 22+, OP.GG 장애 시 SKIP)
 npm run validate-data  # 저장된 패치 데이터에서 템플릿 아이템·프로필 유효성 검사
+npm run evaluate       # 두 패치·212개 시나리오 제약 위반·ablation 평가 (docs/evaluation-report.md)
 ```
 
 추천 제약·개인화·조합 반응·아이템 적합성·그래프 인덱스와 이웃 상한·MCP 허용 도구·입력 검증·JSON/SSE 처리·단일 HTML 번들 계약 테스트 포함. 실제 밸런스 품질이나 승률 개선을 검증한 테스트가 아니다. `npm run smoke`는 Chrome이 필요하며 `CHROME_PATH`로 경로를 지정할 수 있다.
@@ -115,11 +116,14 @@ scripts/check.mjs          전체 JS 문법 검사
 scripts/smoke-dist.mjs     headless Chrome dist smoke 검사
 scripts/qa-browser.mjs     headless Chrome 사용자 흐름 QA
 scripts/validate-data.mjs  패치별 편집 데이터 유효성 검사
+scripts/evaluate.mjs       추천 제약·패치 분리·근거 ablation 평가
 src/opgg-text.js           OP.GG class-style 응답 선언 기반 파서
 src/meta-estimate.js       OP.GG 통계 MetaEstimate 정규화·추천 반영 gate
 src/opgg-view.js           OP.GG 범위 표·메타 표 렌더링
 tests/                     오프라인 기능·전송·번들 계약 테스트
 tests/fixtures/opgg/       2026-11-08 OP.GG MCP 실응답 fixture
+tests/fixtures/ddragon/    평가용 16.20.1·16.22.1 축약 카탈로그
+tests/fixtures/eval/       고정 평가 시나리오
 docs/                      조사, 시스템 계약, 검증 기록
 Plans.md                   구현 작업·의존성·완료 기준
 ```

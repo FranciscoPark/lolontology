@@ -6,10 +6,14 @@
 
 ## 현재 상태 (2026-11-08 갱신)
 
-- **완료된 프로토타입:** 온톨로지/밴픽/아이템 세 페이지, 로컬 저장 데이터 안내·전체 삭제, OP.GG 실응답 fixture와 필터 범위 판정, 44명 의미 프로필 규칙 추천, 챔피언 풀/선호도/자가평가 숙련도, 미주석 풀 챔피언의 `데이터 부족` 후보 표시, 유형별 아이템 초안, Data Dragon 백엔드 동기화(KR 16.22.1), OP.GG MCP 아이템 통계 조회·현재 패치 아이템 ID 검증 adapter.
-- **실행 증거:** `npm test` 65개 통과, `npm run qa` 14개 브라우저 흐름 통과, `npm run check`(전체 JS 문법 + Prettier), `npm run build`, `npm run smoke`(headless Chrome에서 dist 콘솔 오류 없음). 일반 터미널에서 `npm start`가 정상 기동하고 `/api/game-data`, `/api/champion-abilities`, `/api/opgg/tools`가 응답했다. headless Chrome으로 서버 모드의 새로고침 복원, 미주석 후보 선택→아이템 페이지 이동, 패치 노드 그래프 상한, 아이템 검색을 확인했다.
-- **미검증:** 응답 통계의 실제 지역 범위와 빌드 통계의 패치(`trends.version`만 "16.22" 반환), item template의 패치별 전략 적합성. 화면 디자인·사용성의 사람 평가.
-- **핵심 공백:** 직접 검토된 조합 프로필은 173명 중 44명뿐이다. OP.GG item build는 별도 통계로만 표시하며 픽 점수에 합산하지 않는다.
+- **완료:** 세 페이지 UI, JavaScript 온톨로지(효과·상쇄 관계 포함), 온톨로지 경로 기반 상황별 대안 아이템, 미주석 풀 챔피언 `데이터 부족` 후보와 풀 챔피언 플레이 역할 지정, Data Dragon 백엔드 동기화, OP.GG 실응답 fixture·`MetaEstimate` 정규화·요청/응답 범위 표, 템플릿↔통계 빌드 비교, 로컬 데이터 안내·삭제, 테스트 가능한 서버와 프록시 가드레일, 화면 모듈 분리, ESLint·Prettier·CI 워크플로, 두 패치 평가.
+- **실행 증거:** `npm run check`, `npm test` 104개, `npm run build`, `npm run smoke`, `npm run qa` 17개 흐름(실제 OP.GG 조회 포함), `npm run validate-data`, `npm run evaluate`(두 패치 212개 시나리오 제약 위반 0건)가 통과한다.
+- **막힌 작업과 이유:**
+  - 3.1·2.5: OP.GG 응답이 지역·패치 반환 범위를 밝히지 않아 메타 통계를 추천 점수에 넣을 수 없다. 범위를 밝히는 다른 제공자나 OP.GG 측 변경이 필요하다.
+  - 2.2: 129명 챔피언의 의미 주석 확장은 사람 검토가 필요하다.
+  - 3.2: 실제 선택 레이블이 없어 Recall@K·NDCG를 산출할 수 없다.
+  - 5.1: Riot 제품 등록·정책 확인은 사람이 해야 한다.
+  - 6.7: 원격 저장소 연결은 사용자 결정이다. CI 워크플로 파일은 준비돼 있다.
 
 ## Spec delta
 
@@ -75,21 +79,21 @@
 
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
-| 3.1 | `[Feature]` `[lane:gate]` `[tdd:required]` provider가 실제 돌려주는 KR, SR solo/duo, 선택 tier cohort, 역할, 패치의 champion stats를 기존 개인화·조합 점수에 결합한다. 사용자 숙련/선호와 메타 빈도를 분리하고 표본 불확실성 가중 방식을 고정한다. | 모든 통계 기여에 champion·patch·region·queue·tier cohort·role·source·fetchedAt·sample/confidence가 연결된다. 요청/응답 스코프 중 unknown·stale·mismatch인 통계는 숫자 0으로 대체하지 않고 랭킹에서 제외하며, 조합·개인 점수만으로 앱이 동작한다. | 1.2, 2.2 | cc:TODO |
-| 3.2 | `[Eval]` `[lane:gate]` `[tdd:required]` 기준선 추천과 개인화/조합/OP.GG meta contribution을 분리하는 ablation을 고정 evaluation fixture로 비교한다. 시점 또는 패치 holdout과 데이터 누수 점검을 수행한다. | 고정 예제와 patch-separated fixture에서 불가능한 픽/밴·잘못된 아이템 0건. Recall@K/NDCG, coverage, 설명 근거 일치, uncertainty, 누락 fallback을 기준선과 함께 보고한다. 승률 개선은 수치와 독립 표본 근거가 확인되기 전 제품 문구로 사용하지 않는다. | 3.1 | cc:TODO |
+| 3.1 | `[Feature]` `[lane:gate]` `[tdd:required]` provider가 실제 돌려주는 KR, SR solo/duo, 선택 tier cohort, 역할, 패치의 champion stats를 기존 개인화·조합 점수에 결합한다. 사용자 숙련/선호와 메타 빈도를 분리하고 표본 불확실성 가중 방식을 고정한다. | 모든 통계 기여에 champion·patch·region·queue·tier cohort·role·source·fetchedAt·sample/confidence가 연결된다. 요청/응답 스코프 중 unknown·stale·mismatch인 통계는 숫자 0으로 대체하지 않고 랭킹에서 제외하며, 조합·개인 점수만으로 앱이 동작한다. | 1.2, 2.2 | cc:blocked (OP.GG 응답이 지역·패치 반환 범위를 밝히지 않아 `rankingGate`가 열리지 않는다. 정규화·gate·차단 사유 표시는 완료. 2.2 사람 검토도 필요) |
+| 3.2 | `[Eval]` `[lane:gate]` `[tdd:required]` 기준선 추천과 개인화/조합/OP.GG meta contribution을 분리하는 ablation을 고정 evaluation fixture로 비교한다. 시점 또는 패치 holdout과 데이터 누수 점검을 수행한다. | 고정 예제와 patch-separated fixture에서 불가능한 픽/밴·잘못된 아이템 0건. Recall@K/NDCG, coverage, 설명 근거 일치, uncertainty, 누락 fallback을 기준선과 함께 보고한다. 승률 개선은 수치와 독립 표본 근거가 확인되기 전 제품 문구로 사용하지 않는다. | 3.1 | cc:blocked (실제 선택 레이블이 없어 Recall@K·NDCG 미산출, 메타 기여는 3.1 대기. 두 패치 고정·생성 212개 시나리오 제약 위반 0건과 근거 그룹 ablation은 `npm run evaluate`로 완료) |
 
 ### Phase 4: 1차 사용성 완료 [P2]
 
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
-| 4.1 | `[QA/UX]` `[lane:gate]` `[tdd:required]` ontology → manual ban-pick → selected champion item draft의 세 페이지 사용자 여정을 연결하고 브라우저에서 검증한다. | 실제 브라우저에서 ontology search/relationship view, 수동 밴픽과 개인화, item draft 이동, patch/evidence 표시, reload/clear, offline catalog fallback이 확인된다. 각 페이지 빈/오류 상태에서 회복 경로가 보인다. | 0.3, 2.7, 3.1 | cc:TODO |
-| 4.2 | `[QA]` `[lane:gate]` `[tdd:required]` 그래프 객체 조립, 노드 유형 필터, edge provenance, patch guard, result cap을 fixture로 검증한다. | invalid entity type, patch mismatch, unknown annotation, missing recipe relation, excessive search limit가 테스트된다. | 1.4, 1.6, 4.1 | cc:TODO |
+| 4.1 | `[QA/UX]` `[lane:gate]` `[tdd:required]` ontology → manual ban-pick → selected champion item draft의 세 페이지 사용자 여정을 연결하고 브라우저에서 검증한다. | 실제 브라우저에서 ontology search/relationship view, 수동 밴픽과 개인화, item draft 이동, patch/evidence 표시, reload/clear, offline catalog fallback이 확인된다. 각 페이지 빈/오류 상태에서 회복 경로가 보인다. | 0.3, 2.7, 3.1 | cc:完了 |
+| 4.2 | `[QA]` `[lane:gate]` `[tdd:required]` 그래프 객체 조립, 노드 유형 필터, edge provenance, patch guard, result cap을 fixture로 검증한다. | invalid entity type, patch mismatch, unknown annotation, missing recipe relation, excessive search limit가 테스트된다. | 1.4, 1.6, 4.1 | cc:完了 |
 
 ### Phase 5: 공개 준비 [P3, 1차 동작과 분리]
 
 | Task | 내용 | DoD | Depends | Status |
 |---|---|---|---|---|
-| 5.1 | `[Release]` `[lane:release]` `[tdd:skip:release-prep]` Riot 등록 및 현재 제품/외부 데이터 활용 정책·UI를 확인하고, 승인된 공개 경로와 고지문·개인정보 문서를 준비한다. | policy/제품 등록 및 외부 데이터 고지 상태를 기록한다. 승인되지 않은 공개/배포 경로는 릴리스되지 않는다. | 4.1, 4.2 | cc:TODO |
+| 5.1 | `[Release]` `[lane:release]` `[tdd:skip:release-prep]` Riot 등록 및 현재 제품/외부 데이터 활용 정책·UI를 확인하고, 승인된 공개 경로와 고지문·개인정보 문서를 준비한다. | policy/제품 등록 및 외부 데이터 고지 상태를 기록한다. 승인되지 않은 공개/배포 경로는 릴리스되지 않는다. | 4.1, 4.2 | cc:blocked (Riot 제품 등록·정책 확인과 공개 범위는 사람 결정 필요) |
 
 ### Phase 6: 2026-11-08 점검에서 도출한 개선 [P1–P3]
 

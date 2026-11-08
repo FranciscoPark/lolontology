@@ -17,7 +17,7 @@
 
 ## 검증 상태
 
-- 2026-11-08: `npm run check`(전체 JS 문법 + Prettier), `npm test` (65 tests), `npm run build`, `npm run smoke` 통과.
+- 2026-11-08 최종: `npm run check`(전체 JS 문법 + ESLint + Prettier), `npm test` (104 tests), `npm run build`, `npm run smoke`, `npm run qa`(17개 흐름), `npm run validate-data`, `npm run evaluate` 통과.
 - 2026-11-08: 이전 `dist/index.html`은 `build.mjs`가 `graph.js`·`opgg-build.js`를 번들하지 않아 시작 직후 `createOntology is not defined`로 중단됐다. 번들러가 import 그래프를 따르도록 고쳤고 번들 계약 테스트와 headless Chrome smoke를 추가했다.
 - 2026-11-08: 일반 터미널에서 `npm start`가 기동했고 KR realm 16.22.1 동기화(173 champions, 863 items), `/api/game-data`, `/api/champion-abilities`, `/api/opgg/tools` 응답을 확인했다. 아래 `listen EPERM` 기록은 2026-10-08 작업 환경의 제약이며 현재는 해소됐다.
 - 2026-11-08: headless Chrome으로 서버 모드 화면의 공식 데이터 표시, 새로고침 시 로컬 상태 복원, 미주석 풀 챔피언 후보 선택→아이템 페이지 이동, 패치 노드 그래프 상한, 아이템 검색을 확인했다. 콘솔 오류는 없었다.
@@ -30,6 +30,7 @@
 - 2026-11-08: 아이템 페이지가 편집 템플릿과 OP.GG 통계 빌드를 같은 Data Dragon 아이템 패치에서만 비교한다(`src/build-compare.js`). 챔피언이나 아이템 패치가 다르면 비교하지 않는다. 템플릿 초안은 템플릿·상대 조합·개인 입력 근거를 따로 표시하고, 숙련도는 아이템 선택에 반영하지 않는다고 밝힌다. 16.22.1 실조회에서 아리 템플릿 코어 5개 중 4개가 통계 응답에 있었다.
 - 2026-11-08: 상황별 대안 아이템을 엔진의 조건문 대신 온톨로지 경로로 고른다. `Effect` 노드(회복, 회복 감소, 마법 피해, 마법 저항력, 전방 내구도, 마법·방어구 관통)와 `APPLIES_EFFECT`·`MITIGATES` 관계를 편집 프로필·효과 주석에서 만들고, `counterItemCandidates`가 상대 → 위협 효과 → 대응 효과 → 아이템 경로를 따라간다. 대안 카드의 근거에 사용한 경로를 표시한다. 리팩터링 전후 `buildDraft` 결과를 2,820개 조합에서 비교해 차이가 없음을 확인했다. 순환 import를 피하려고 템플릿·구매 판정을 `src/templates.js`로 분리했다.
 - 2026-11-08: 821줄이던 `src/app.js`를 공유 상태(`app-state.js`)와 페이지별 화면 모듈(`view-*.js`)로 나눴다. 진입점은 74줄이다. 긴 HTML 템플릿은 카드·행·노드 단위 함수로 나눴지만 템플릿 문자열 자체가 긴 줄은 남아 있다. 분리 후 `npm run smoke`와 `npm run qa` 17개 흐름이 통과했다.
+- 2026-11-08: `npm run evaluate`가 16.20.1·16.22.1 두 패치에서 고정 12개와 시드 고정 생성 200개 시나리오를 평가한다. 두 패치 모두 제약 위반 0건이다. 근거 그룹 ablation에서 조합 규칙을 빼면 상위 3명 Jaccard가 0.55로 떨어지고, 개인 입력을 빼면 주력 챔피언 평균 순위가 1.06에서 4.74로 내려간다. Recall@K·NDCG는 실제 선택 레이블이 없어 산출하지 않는다. 결과는 [evaluation-report.md](evaluation-report.md)에 있다.
 - 성능 관측(16.22.1, 로컬): 그래프 1,054 노드·6,965 관계 생성 약 4ms. 아이템 전체 검색은 인접 인덱스 도입 전 약 193ms에서 약 2ms로 줄었다.
 - Data Dragon backend store tests cover independent version IDs, atomic snapshot persistence/reload, lazy ability cache, patch invalidation, and last-known-good behavior after a failed update.
 - Graph tests cover ability relationships and independent champion/item patch filtering as well as existing relation, unknown-annotation, recipe/build-candidate, role filter, and result-bound behavior.
