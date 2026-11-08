@@ -24,9 +24,20 @@ if (!existsSync(page)) {
   process.exit(2);
 }
 const profile = mkdtempSync(join(tmpdir(), 'rift-draft-smoke-'));
-const args = ['--headless=new', '--disable-gpu', '--no-first-run', `--user-data-dir=${profile}`, '--enable-logging=stderr', '--v=0', '--virtual-time-budget=3000', '--dump-dom', pathToFileURL(page).href];
+const args = [
+  '--headless=new',
+  '--disable-gpu',
+  '--no-first-run',
+  `--user-data-dir=${profile}`,
+  '--enable-logging=stderr',
+  '--v=0',
+  '--virtual-time-budget=3000',
+  '--dump-dom',
+  pathToFileURL(page).href,
+];
 const child = spawn(chrome, args);
-let dom = '', log = '';
+let dom = '',
+  log = '';
 child.stdout.on('data', chunk => (dom += chunk));
 child.stderr.on('data', chunk => (log += chunk));
 const code = await new Promise(done => child.on('close', done));

@@ -7,9 +7,11 @@ test('bundle includes every module reachable from app.js in dependency order', a
   const modules = await resolveModules();
   const names = modules.map(module => module.file);
   assert.equal(names.at(-1), 'app.js');
-  for (const required of ['graph.js', 'opgg-build.js', 'engine.js', 'ontology.js', 'catalog.js', 'opgg-ui.js']) assert.ok(names.includes(required), `${required} missing from bundle`);
+  for (const required of ['graph.js', 'opgg-build.js', 'engine.js', 'ontology.js', 'catalog.js', 'opgg-ui.js'])
+    assert.ok(names.includes(required), `${required} missing from bundle`);
   for (const {file, source} of modules) {
-    for (const {file: dependency} of parseImports(source)) assert.ok(names.indexOf(dependency) < names.indexOf(file), `${dependency} must precede ${file}`);
+    for (const {file: dependency} of parseImports(source))
+      assert.ok(names.indexOf(dependency) < names.indexOf(file), `${dependency} must precede ${file}`);
   }
 });
 
@@ -18,7 +20,12 @@ test('every imported name is declared in the standalone script', async () => {
   const {script} = await buildHtml();
   for (const {source} of modules) {
     for (const {file, specifiers} of parseImports(source)) {
-      for (const name of specifiers) assert.match(script, new RegExp(`(?:function|const|let|class)\\s+${name}\\b|,\\s*${name}\\s*=`), `${name} from ${file} is not declared`);
+      for (const name of specifiers)
+        assert.match(
+          script,
+          new RegExp(`(?:function|const|let|class)\\s+${name}\\b|,\\s*${name}\\s*=`),
+          `${name} from ${file} is not declared`,
+        );
     }
   }
 });
@@ -28,7 +35,10 @@ test('standalone script parses and has no duplicate top-level function names', a
   assert.doesNotThrow(() => new vm.Script(`(()=>{'use strict';\n${script}\n})`));
   assert.doesNotMatch(html, /type="module"|\/src\/app\.js|\/src\/style\.css/);
   const functions = [...script.matchAll(/^(?:async\s+)?function\s+(\w+)/gm)].map(match => match[1]);
-  assert.deepEqual(functions.filter((name, index) => functions.indexOf(name) !== index), []);
+  assert.deepEqual(
+    functions.filter((name, index) => functions.indexOf(name) !== index),
+    [],
+  );
 });
 
 test('multi-line imports are stripped and unsupported import forms are rejected', () => {

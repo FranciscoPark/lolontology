@@ -9,7 +9,10 @@ const IMPORT = /^import\s*\{([^}]*)\}\s*from\s*['"]\.\/([\w.-]+\.js)['"];?[ \t]*
 export function parseImports(source) {
   if (/^import\s+(?!\{)/m.test(source)) throw Error('번들러는 `import {..} from "./x.js"` 형식만 지원합니다');
   return [...source.matchAll(IMPORT)].map(([, names, file]) => {
-    const specifiers = names.split(',').map(name => name.trim()).filter(Boolean);
+    const specifiers = names
+      .split(',')
+      .map(name => name.trim())
+      .filter(Boolean);
     if (specifiers.some(name => /\s/.test(name))) throw Error(`import 별칭은 지원하지 않습니다: ${file}`);
     return {file, specifiers};
   });
@@ -17,7 +20,9 @@ export function parseImports(source) {
 
 // app.js에서 시작해 실제로 도달하는 src 모듈만, 의존성이 먼저 오도록 정렬한다.
 export async function resolveModules(entry = ENTRY) {
-  const order = [], sources = new Map(), visiting = new Set();
+  const order = [],
+    sources = new Map(),
+    visiting = new Set();
   async function visit(file) {
     if (sources.has(file)) return;
     if (visiting.has(file)) throw Error(`순환 import: ${file}`);
@@ -41,9 +46,11 @@ export async function buildHtml() {
   const script = modules.map(({file, source}) => `// ---- src/${file}\n${stripModuleSyntax(source)}`).join('\n');
   const css = await readFile(new URL('src/style.css', root), 'utf8');
   const template = await readFile(new URL('index.html', root), 'utf8');
-  const stylesheet = '<link rel="stylesheet" href="/src/style.css">';
-  const moduleTag = '<script type="module" src="/src/app.js"></script>';
-  if (!template.includes(stylesheet) || !template.includes(moduleTag)) throw Error('index.html의 stylesheet/script 태그를 찾지 못했습니다');
+  // 포매터가 `<link ... />`처럼 바꿔도 동작하도록 공백과 self-closing을 허용한다.
+  const stylesheet = /<link\s+rel="stylesheet"\s+href="\/src\/style\.css"\s*\/?>/;
+  const moduleTag = /<script\s+type="module"\s+src="\/src\/app\.js"\s*><\/script>/;
+  if (!stylesheet.test(template) || !moduleTag.test(template))
+    throw Error('index.html의 stylesheet/script 태그를 찾지 못했습니다');
   const html = template
     .replace(stylesheet, () => `<style>${css}</style>`)
     .replace(moduleTag, () => `<script>\n(()=>{\n'use strict';\n${script}\n})();\n</script>`);
@@ -55,5 +62,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   // 1st-party 모듈만 번들한다. 결과물은 서버 없이 여는 수동 추천 데모다.
   await mkdir(new URL('dist/', root), {recursive: true});
   await writeFile(new URL('dist/index.html', root), html);
-  console.log(`Built dist/index.html (${modules.join(', ')}) — standalone manual draft; official Data Dragon and MCP require npm start.`);
+  console.log(
+    `Built dist/index.html (${modules.join(', ')}) — standalone manual draft; official Data Dragon and MCP require npm start.`,
+  );
 }

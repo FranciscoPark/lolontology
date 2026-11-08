@@ -1,1 +1,20 @@
-{"name":"rift-draft","version":"0.1.0","private":true,"type":"module","scripts":{"start":"node scripts/serve.mjs","build":"node scripts/build.mjs","test":"node --test","check":"node --check src/app.js && node --check src/engine.js && node --check src/graph.js && node --check src/catalog.js && node --check src/opgg-ui.js && node --check src/opgg-build.js && node --check scripts/serve.mjs && node --check scripts/data-dragon-store.mjs && node --check scripts/opgg.mjs"},"engines":{"node":">=20.11"}}
+{
+  "name": "rift-draft",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "check": "node scripts/check.mjs && prettier --check .",
+    "format": "prettier --write .",
+    "smoke": "node scripts/build.mjs && node scripts/smoke-dist.mjs"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
+  }
+}
