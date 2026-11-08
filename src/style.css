@@ -1621,3 +1621,67 @@ select {
   padding-left: 18px;
   line-height: 1.8;
 }
+.scope-table,
+.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 11px;
+}
+.scope-table caption,
+.meta-table caption {
+  text-align: left;
+  color: var(--muted);
+  font-size: 10px;
+  padding-bottom: 6px;
+}
+.scope-table th,
+.scope-table td,
+.meta-table th,
+.meta-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 400;
+}
+.scope-table thead th,
+.meta-table thead th {
+  color: var(--muted);
+  font-size: 10px;
+}
+.scope-ok {
+  color: var(--accent);
+}
+.scope-unknown {
+  color: var(--gold);
+}
+.scope-mismatch {
+  color: var(--enemy);
+}
+.meta-table tr.in-pool th {
+  color: var(--accent);
+}
+.meta-table small {
+  font-size: 9px;
+  border: 1px solid #456255;
+  padding: 0 4px;
+}
+@media (max-width: 600px) {
+  .meta-table td:nth-child(5),
+  .meta-table th:nth-child(5),
+  .meta-table td:nth-child(6),
+  .meta-table th:nth-child(6) {
+    display: none;
+  }
+}
+.output-fields {
+  flex-basis: 100% !important;
+}
+.output-fields pre {
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow: auto;
+  background: #101b20;
+  padding: 10px;
+  font-size: 10px;
+}

@@ -124,9 +124,15 @@ async function check(name, run) {
     const detail = await run();
     results.push({name, ok: true, detail: detail ?? ''});
   } catch (error) {
-    results.push({name, ok: false, detail: error.message});
+    results.push(
+      error instanceof SkipError
+        ? {name, ok: true, skipped: true, detail: error.message}
+        : {name, ok: false, detail: error.message},
+    );
   }
 }
+// 외부 서비스(OP.GG)가 응답하지 않는 경우처럼 앱 결함이 아닌 사유로 검사할 수 없을 때 사용한다.
+class SkipError extends Error {}
 const assert = (condition, message) => {
   if (!condition) throw Error(message);
 };
@@ -268,6 +274,51 @@ try {
     await send('Network.setBlockedURLs', {urls: []});
     return status;
   });
+  await check('OP.GG 라인 메타 실조회와 범위 표', async () => {
+    await send('Network.setBlockedURLs', {urls: []});
+    await click('#connect-opgg');
+    const ready = await waitFor(
+      `(() => { const status = document.querySelector('#opgg-status').textContent; return status.includes('조회 도구 확인됨') ? 'ready' : status.includes('연결 실패') ? 'failed' : ''; })()`,
+      30000,
+    );
+    if (ready === 'failed') throw new SkipError(`OP.GG 연결 불가: ${await text('#opgg-status')}`);
+    await evaluate(
+      `(() => { const select = document.querySelector('#opgg-tool'); select.value = 'lol_list_lane_meta_champions'; select.dispatchEvent(new Event('change')); })()`,
+    );
+    await evaluate(`document.querySelector('#opgg-form').requestSubmit()`);
+    await waitFor(`document.querySelector('#opgg-result .meta-table, #opgg-result .opgg-warning')`, 40000);
+    const html = await evaluate(`document.querySelector('#opgg-result').innerHTML`);
+    assert(html.includes('scope-table'), '범위 표 없음');
+    assert(html.includes('mid 라인 메타'), `라인 메타 표 없음: ${(await text('#opgg-result')).slice(0, 200)}`);
+    assert(html.includes('추천 점수에 반영하지 않음'), '추천 미반영 안내 없음');
+    return `${await evaluate(`document.querySelectorAll('#opgg-result .meta-table tbody tr').length`)}행 · 범위 표 표시`;
+  });
+  await check('OP.GG 챔피언 분석 실조회와 아이템 페이지 통계 빌드', async () => {
+    if (!(await evaluate(`!!document.querySelector('#opgg-tool option')`))) throw new SkipError('OP.GG 미연결');
+    await pick('[data-side="allies"][data-index="2"]', 'Ahri');
+    await evaluate(
+      `(() => { const select = document.querySelector('#opgg-tool'); select.value = 'lol_get_champion_analysis'; select.dispatchEvent(new Event('change')); })()`,
+    );
+    await evaluate(`document.querySelector('#opgg-result').innerHTML = ''`);
+    await evaluate(`document.querySelector('#opgg-form').requestSubmit()`);
+    await waitFor(`document.querySelector('#opgg-result .opgg-stats, #opgg-result .opgg-warning')`, 40000).catch(
+      async () => {
+        throw Error(`결과 없음 · 토스트: ${await text('#toast')}`);
+      },
+    );
+    assert(
+      await evaluate(`!!document.querySelector('#opgg-result .opgg-stats')`),
+      (await text('#opgg-result')).slice(0, 300),
+    );
+    await click('[data-page="items"]');
+    const groups = await evaluate(
+      `[...document.querySelectorAll('#external-build .item-row-heading h3')].map(h => h.textContent).join(', ')`,
+    );
+    assert(groups.includes('코어 조합') && groups.includes('신발'), `통계 빌드 그룹: ${groups || '없음'}`);
+    await click('[data-page="banpick"]');
+    await pick('[data-side="allies"][data-index="2"]', 'Ahri');
+    return groups;
+  });
   await check('백엔드 연결 실패 시 마지막 저장 카탈로그 유지', async () => {
     await send('Network.setBlockedURLs', {urls: ['*/api/game-data*']});
     await load(base + '#banpick');
@@ -318,8 +369,11 @@ try {
   await cleanup();
 }
 
-for (const {name, ok, detail} of results)
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` · ${detail}` : ''}`);
+for (const {name, ok, skipped, detail} of results)
+  console.log(`${skipped ? 'SKIP' : ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` · ${detail}` : ''}`);
 const failed = results.filter(result => !result.ok).length;
-console.log(`\n${results.length - failed}/${results.length} 통과 · ${new Date().toISOString()}`);
+const skipped = results.filter(result => result.skipped).length;
+console.log(
+  `\n${results.length - failed}/${results.length} 통과${skipped ? ` (SKIP ${skipped})` : ''} · ${new Date().toISOString()}`,
+);
 process.exit(failed ? 1 : 0);

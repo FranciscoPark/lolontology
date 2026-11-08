@@ -119,6 +119,10 @@ export class OpggClient {
           clientInfo: {name: 'rift-draft', version: '0.1.0'},
         });
         this.protocol = result.protocolVersion || this.protocol;
+        this.serverInfo =
+          result.serverInfo && typeof result.serverInfo === 'object'
+            ? {name: String(result.serverInfo.name || ''), version: String(result.serverInfo.version || '')}
+            : null;
         await this.rpc('notifications/initialized', {}, true);
       })().catch(e => {
         this.ready = null;
@@ -155,6 +159,13 @@ export class OpggClient {
           .join('\n')
           .slice(0, 500) || 'OP.GG 조회 실패',
       );
-    return {source: ENDPOINT, tool: name, arguments: args, fetchedAt: new Date().toISOString(), result};
+    return {
+      source: ENDPOINT,
+      provider: {...(this.serverInfo || {name: '', version: ''}), protocol: this.protocol},
+      tool: name,
+      arguments: args,
+      fetchedAt: new Date().toISOString(),
+      result,
+    };
   }
 }

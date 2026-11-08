@@ -1,3 +1,4 @@
+import {parseOpggText} from './opgg-text.js';
 // Only schema-advertised parameters are sent. Historical patches and rank brackets
 // are not assumed to exist merely because the OP.GG website has those controls.
 export function fieldKind(key) {
@@ -37,12 +38,43 @@ export const OPGG_ITEM_BUILD_FIELDS = [
   'data.sixth_items[]',
   'data.last_items[]',
 ];
+export const OPGG_SUMMARY_FIELDS = [
+  'data.summary.average_stats.{ban_rate,pick_rate,play,rank,tier,win_rate}',
+  'data.trends.pick.{created_at,rank,rate,version}',
+];
+const OPGG_POSITIONS = {TOP: 'top', JUNGLE: 'jungle', MID: 'mid', ADC: 'adc', SUPPORT: 'support'};
+export const opggPosition = role => OPGG_POSITIONS[role] || null;
+// 스키마가 선택지를 enum으로 주지 않는 도구에 쓸 기본 응답 필드. 2026-11-08 tools/list 설명의 닫힌 목록에서 골랐다.
+export function defaultOutputFields(toolName, role) {
+  if (toolName === 'lol_get_champion_analysis') return [...OPGG_SUMMARY_FIELDS, ...OPGG_ITEM_BUILD_FIELDS];
+  if (toolName === 'lol_list_lane_meta_champions') {
+    const position = opggPosition(role) || 'mid';
+    return [`data.positions.${position}[].{ban_rate,champion,pick_rate,play,rank,tier,win_rate}`];
+  }
+  return [];
+}
 export function suggestedOutputFields(schema) {
   return outputFieldOptions(schema).filter(value =>
     /(win_rate|pick_rate|ban_rate|kda|rank|tier|play|role_rate|position|core_items|boots|starter_items|fourth_items|fifth_items|sixth_items|last_items)/i.test(
       value,
     ),
   );
+}
+// `a.{x,y}, b[]`처럼 중괄호·대괄호 안의 쉼표는 필드 표기의 일부이므로 바깥 쉼표에서만 나눈다.
+export function splitFieldList(value) {
+  const parts = [];
+  let depth = 0,
+    current = '';
+  for (const char of String(value)) {
+    if (char === '{' || char === '[') depth++;
+    else if ((char === '}' || char === ']') && depth > 0) depth--;
+    if (char === ',' && depth === 0) {
+      parts.push(current);
+      current = '';
+    } else current += char;
+  }
+  parts.push(current);
+  return parts.map(part => part.trim()).filter(Boolean);
 }
 export function serializeArguments(entries, schema) {
   const grouped = new Map();
@@ -56,18 +88,7 @@ export function serializeArguments(entries, schema) {
     [...grouped].map(([key, values]) => {
       const field = schema.properties[key];
       if (!field) throw Error(`지원하지 않는 조회 조건: ${key}`);
-      if (field.type === 'array')
-        return [
-          key,
-          field.items?.enum
-            ? values
-            : values.flatMap(value =>
-                value
-                  .split(',')
-                  .map(part => part.trim())
-                  .filter(Boolean),
-              ),
-        ];
+      if (field.type === 'array') return [key, field.items?.enum ? values : values.flatMap(splitFieldList)];
       if (values.length > 1) throw Error(`중복 조회 조건: ${key}`);
       const value = values[0];
       return [
@@ -88,28 +109,16 @@ export function resultText(result) {
     .map(c => c.text)
     .join('\n');
 }
-// OP.GG 텍스트 응답은 `class Data: summary,core_items,...` 줄로 각 class의 위치 인자 이름을 선언한다.
-// 선언 순서는 요청한 필드에 따라 바뀌므로 위치를 고정 가정하지 않고 이 선언으로 이름을 붙인다.
-export function parseClassSchema(text) {
-  const schema = {};
-  for (const [, name, fields] of String(text).matchAll(/^class\s+(\w+):\s*([\w,\s]*)$/gm))
-    schema[name] = fields
-      .split(',')
-      .map(field => field.trim())
-      .filter(Boolean);
-  return schema;
-}
+// 요약 통계는 응답의 class 선언으로 이름을 붙인 data.summary.average_stats에서만 읽는다.
 export function parseChampionAnalysisStats(result) {
-  const text = resultText(result),
-    match = text.match(/AverageStats\(([^()]*)\)/);
-  if (!match) return null;
-  const values = match[1].split(',').map(value => Number(value.trim()));
-  if (values.some(value => !Number.isFinite(value))) return null;
-  // 선언이 없을 때만 2026-10-08에 관측한 공식 6개 필드 순서를 사용한다.
-  const fields = parseClassSchema(text).AverageStats || ['play', 'win_rate', 'pick_rate', 'ban_rate', 'tier', 'rank'];
-  if (fields.length !== values.length) return null;
-  const named = Object.fromEntries(fields.map((field, index) => [field, values[index]]));
-  const {play, win_rate: winRate, pick_rate: pickRate, ban_rate: banRate, tier, rank} = named;
+  let stats;
+  try {
+    stats = parseOpggText(resultText(result))?.data?.summary?.average_stats;
+  } catch {
+    return null;
+  }
+  if (!stats) return null;
+  const {play, win_rate: winRate, pick_rate: pickRate, ban_rate: banRate, tier, rank} = stats;
   if (
     !Number.isInteger(play) ||
     play < 0 ||

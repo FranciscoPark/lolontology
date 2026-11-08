@@ -1,82 +1,23 @@
 import {isPurchasable} from './engine.js';
-import {parseClassSchema, resultText} from './opgg-ui.js';
+import {resultText} from './opgg-ui.js';
+import {parseOpggText} from './opgg-text.js';
 
-function splitArguments(source) {
-  const parts = [];
-  let start = 0,
-    depth = 0,
-    quote = null,
-    escaped = false;
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i];
-    if (quote) {
-      if (escaped) escaped = false;
-      else if (char === '\\') escaped = true;
-      else if (char === quote) quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === '(' || char === '[') depth++;
-    else if (char === ')' || char === ']') depth--;
-    else if (char === ',' && depth === 0) {
-      parts.push(source.slice(start, i).trim());
-      start = i + 1;
-    }
-  }
-  if (source.slice(start).trim()) parts.push(source.slice(start).trim());
-  return parts;
-}
-function callBody(text, name) {
-  const token = `${name}(`,
-    start = text.indexOf(token);
-  if (start < 0) return null;
-  const bodyStart = start + token.length;
-  let depth = 1,
-    quote = null,
-    escaped = false;
-  for (let i = bodyStart; i < text.length; i++) {
-    const char = text[i];
-    if (quote) {
-      if (escaped) escaped = false;
-      else if (char === '\\') escaped = true;
-      else if (char === quote) quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === '(') depth++;
-    else if (char === ')' && --depth === 0) return text.slice(bodyStart, i);
-  }
-  return null;
-}
-function parseArray(source) {
-  try {
-    const value = JSON.parse(source);
-    return Array.isArray(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-const CORE_FIELDS = ['ids', 'ids_names', 'play', 'win', 'pick_rate'];
-function parseCore(source, fields = CORE_FIELDS) {
-  const body = callBody(source, 'CoreItems');
-  if (body === null) return null;
-  const values = splitArguments(body);
-  if (values.length !== fields.length) return null;
-  const raw = Object.fromEntries(fields.map((field, index) => [field, values[index]]));
-  const ids = parseArray(raw.ids),
-    names = parseArray(raw.ids_names),
-    play = Number(raw.play),
-    win = Number(raw.win),
-    pickRate = Number(raw.pick_rate);
+const STAGES = [
+  ['core_items', '코어 조합'],
+  ['boots', '신발'],
+  ['starter_items', '시작 아이템'],
+  ['fourth_items', '4번째 아이템'],
+  ['fifth_items', '5번째 아이템'],
+  ['sixth_items', '6번째 아이템'],
+  ['last_items', '마지막 아이템'],
+];
+
+function validCoreItems(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const {ids, ids_names: names, play, win, pick_rate: pickRate} = value;
   if (
-    !ids ||
-    !names ||
+    !Array.isArray(ids) ||
+    !Array.isArray(names) ||
     ids.some(id => !/^\d{1,7}$/.test(String(id))) ||
     !Number.isInteger(play) ||
     play < 0 ||
@@ -90,28 +31,8 @@ function parseCore(source, fields = CORE_FIELDS) {
     return null;
   return {ids: ids.map(String), names, play, win, pickRate};
 }
-function parseCoreList(source, fields) {
-  const value = source.trim();
-  if (value.startsWith('CoreItems(')) {
-    const core = parseCore(value, fields);
-    return core ? [core] : [];
-  }
-  const body = value.startsWith('[') && value.endsWith(']') ? value.slice(1, -1) : null;
-  if (body === null) return [];
-  return splitArguments(body)
-    .map(entry => parseCore(entry, fields))
-    .filter(Boolean);
-}
+const coreList = value => (Array.isArray(value) ? value : value ? [value] : []).map(validCoreItems).filter(Boolean);
 
-const STAGES = [
-  ['core_items', '코어 조합'],
-  ['boots', '신발'],
-  ['starter_items', '시작 아이템'],
-  ['fourth_items', '4번째 아이템'],
-  ['fifth_items', '5번째 아이템'],
-  ['sixth_items', '6번째 아이템'],
-  ['last_items', '마지막 아이템'],
-];
 export function parseOpggItemBuild(
   result,
   catalog,
@@ -119,25 +40,19 @@ export function parseOpggItemBuild(
 ) {
   if (catalog?.mode !== 'official' || !catalog?.items || !championId)
     return {status: 'unavailable', reason: '현재 공식 아이템 패치가 준비되지 않았습니다.'};
-  const text = resultText(result),
-    body = callBody(text, 'Data');
-  if (body === null) return {status: 'unavailable', reason: 'OP.GG 응답에 알려진 아이템 빌드 형식이 없습니다.'};
-  // 위치 인자의 이름은 응답의 `class Data:` 선언으로만 정한다. 선언이 없거나 개수가 다르면 추측하지 않는다.
-  const schema = parseClassSchema(text),
-    names = schema.Data,
-    values = splitArguments(body);
-  if (!names || names.length !== values.length)
-    return {status: 'unavailable', reason: 'OP.GG 응답에 필드 선언(class Data)이 없거나 값 개수와 다릅니다.'};
-  if (!STAGES.some(([key]) => names.includes(key)))
+  // 필드 이름은 응답의 class 선언으로만 정한다. 선언이 없거나 값 개수가 다르면 추측하지 않는다.
+  let data;
+  try {
+    data = parseOpggText(resultText(result))?.data;
+  } catch (error) {
+    return {status: 'unavailable', reason: `OP.GG 응답 형식을 해석하지 못했습니다: ${error.message}`};
+  }
+  if (!data || !STAGES.some(([key]) => key in data))
     return {status: 'unavailable', reason: 'OP.GG 응답에 아이템 빌드 필드가 없습니다.'};
-  const coreFields = schema.CoreItems || CORE_FIELDS;
-  const raw = Object.fromEntries(
-      STAGES.map(([key]) => [key, names.includes(key) ? parseCoreList(values[names.indexOf(key)], coreFields) : []]),
-    ),
-    omitted = [];
-  const groups = [];
+  const omitted = [],
+    groups = [];
   for (const [key, label] of STAGES) {
-    const choices = raw[key]
+    const choices = coreList(data[key])
       .map(choice => {
         const items = choice.ids
           .map(id => {

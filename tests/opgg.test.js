@@ -98,9 +98,16 @@ test('response display supports structured and text content without execution', 
   assert.equal(resultText({content: [{type: 'text', text: '{"data":1}'}]}), '{"data":1}');
   assert(resultText({structuredContent: {data: 2}}).includes('2'));
 });
-test('champion analysis summary parses only the observed six-number AverageStats form', () => {
+test('champion analysis summary is read only through declared AverageStats fields', () => {
+  const declarations =
+    'class LolGetChampionAnalysis: data\nclass Data: summary\nclass Summary: average_stats\nclass AverageStats: play,win_rate,pick_rate,ban_rate,tier,rank\n\n';
   const sample = {
-    content: [{type: 'text', text: 'LolGetChampionAnalysis(Data(Summary(AverageStats(12510,0.51,0.09,0.03,3,31))))'}],
+    content: [
+      {
+        type: 'text',
+        text: declarations + 'LolGetChampionAnalysis(Data(Summary(AverageStats(12510,0.51,0.09,0.03,3,31))))',
+      },
+    ],
   };
   assert.deepEqual(parseChampionAnalysisStats(sample), {
     play: 12510,
@@ -111,6 +118,13 @@ test('champion analysis summary parses only the observed six-number AverageStats
     rank: 31,
   });
   assert.equal(parseChampionAnalysisStats({content: [{type: 'text', text: 'AverageStats(12510,0.51)'}]}), null);
+  // 선언 없는 응답은 위치로 추측하지 않는다.
+  assert.equal(
+    parseChampionAnalysisStats({
+      content: [{type: 'text', text: 'LolGetChampionAnalysis(Data(Summary(AverageStats(12510,0.51,0.09,0.03,3,31))))'}],
+    }),
+    null,
+  );
 });
 test('OP.GG item build groups follow the declared class Data field order, not a fixed position', () => {
   const catalog = {
@@ -124,7 +138,8 @@ test('OP.GG item build groups follow the declared class Data field order, not a 
     ),
   };
   // 실제 응답처럼 last_items가 starter_items 바로 뒤에 선언된다.
-  const text = `class Data: core_items,boots,starter_items,last_items,fourth_items,fifth_items,sixth_items
+  const text = `class LolGetChampionAnalysis: data
+class Data: core_items,boots,starter_items,last_items,fourth_items,fifth_items,sixth_items
 class CoreItems: ids,ids_names,play,win,pick_rate
 
 LolGetChampionAnalysis(Data(CoreItems([3118,4645,3157],["Malignance","Shadowflame","Zhonya's Hourglass"],1171,629,0.13),CoreItems([3020],["Sorcerer's Shoes"],8848,4621,0.58),CoreItems([1056,2003,2003],["Doran's Ring","Health Potion","Health Potion"],15400,7916,0.99),[CoreItems([4629],["Cosmic Drive"],4,1,0.17)],[CoreItems([3118],["Malignance"],10083,5232,0.64)],[CoreItems([3089],["Rabadon"],1213,716,0.32)],[CoreItems([3135],["Void Staff"],224,138,0.22)]))`;
@@ -174,12 +189,12 @@ test('item build without a class Data declaration is not guessed', () => {
     'LolGetChampionAnalysis(Data(CoreItems([3020],["Shoes"],10,5,0.5),CoreItems([3020],["Shoes"],10,5,0.5)))';
   const build = parseOpggItemBuild({content: [{type: 'text', text}]}, catalog, {championId: 'Ahri'});
   assert.equal(build.status, 'unavailable');
-  assert.match(build.reason, /class Data/);
+  assert.match(build.reason, /필드 선언 없음/);
 });
 
 test('average stats follow the declared field order when kda is also requested', () => {
   const text =
-    'class AverageStats: ban_rate,kda,pick_rate,play,rank,tier,win_rate\n\nX(Data(Summary(AverageStats(0.03,2.9,0.12,80342,2,1,0.51))))';
+    'class X: data\nclass Data: summary\nclass Summary: average_stats\nclass AverageStats: ban_rate,kda,pick_rate,play,rank,tier,win_rate\n\nX(Data(Summary(AverageStats(0.03,2.9,0.12,80342,2,1,0.51))))';
   assert.deepEqual(parseChampionAnalysisStats({content: [{type: 'text', text}]}), {
     play: 80342,
     winRate: 0.51,
@@ -200,7 +215,7 @@ test('OP.GG item stats reject non-purchasable or unknown current-patch ids', () 
       content: [
         {
           type: 'text',
-          text: 'class Data: core_items,boots,starter_items,last_items,fourth_items,fifth_items,sixth_items\nclass CoreItems: ids,ids_names,play,win,pick_rate\n\nLolGetChampionAnalysis(Data(CoreItems([1001,9999],["Boots","Unknown"],50,20,0.2),CoreItems([],[],50,20,0.2),CoreItems([],[],50,20,0.2),[],[],[],[]))',
+          text: 'class LolGetChampionAnalysis: data\nclass Data: core_items,boots,starter_items,last_items,fourth_items,fifth_items,sixth_items\nclass CoreItems: ids,ids_names,play,win,pick_rate\n\nLolGetChampionAnalysis(Data(CoreItems([1001,9999],["Boots","Unknown"],50,20,0.2),CoreItems([],[],50,20,0.2),CoreItems([],[],50,20,0.2),[],[],[],[]))',
         },
       ],
     },

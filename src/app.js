@@ -6,9 +6,8 @@ import {
   filterLabel,
   outputFieldOptions,
   suggestedOutputFields,
-  OPGG_ITEM_BUILD_FIELDS,
+  defaultOutputFields,
   serializeArguments,
-  parseChampionAnalysisStats,
   resultText,
 } from './opgg-ui.js';
 import {PROFILES, ROLES, ROLE_NAMES, TRAITS} from './ontology.js';
@@ -24,6 +23,8 @@ import {
 import {emptyState, normalizeState, assign, composition, recommendPicks, buildDraft} from './engine.js';
 import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood, ontologyInfo} from './graph.js';
 import {parseOpggItemBuild} from './opgg-build.js';
+import {normalizeOpggCall, resolveProviderChampion} from './meta-estimate.js';
+import {renderMetaResult} from './opgg-view.js';
 const GRAPH_NODE_LIMIT = 24;
 const STATE_KEY = 'rift-draft-state-v1',
   CATALOG_KEY = 'rift-draft-catalog-v1';
@@ -290,21 +291,6 @@ function renderBuild() {
     `<div class="build-summary"><span>${esc(b.label)}</span><small>초안 · 조합이 바뀌면 방어 후보와 대안이 갱신됩니다</small></div><p class="build-disclaimer">${b.core.length >= 6 ? '원딜 후반 풀슬롯 예시: 신발을 판매하고 코어 6개를 장착합니다.' : '후반 완성 기준 6칸: 코어 5개 + 신발 1개.'} 시작 아이템은 초반용이며 완성 빌드에서는 교체됩니다.</p><section class="item-row"><div class="item-row-heading"><h3>첫 아이템</h3><small>라인 시작용 · 후반 교체</small></div><div class="item-grid">${itemCard(b.start, '시작 아이템') || '<p class="coverage">이 역할에는 첫 아이템을 제안하지 않습니다.</p>'}</div></section><section class="item-row"><div class="item-row-heading"><h3>코어 아이템</h3><small>${b.core.length >= 6 ? '원딜 풀슬롯 후반 후보 · 신발 판매 후 장착' : '최종 빌드 6칸 중 신발을 제외한 5개 · 구매 순서 초안'}</small></div><div class="item-grid">${b.core.map((i, n) => itemCard(i, `코어 후보 ${n + 1}`)).join('') || '<p class="coverage">유효한 코어 후보가 없습니다.</p>'}</div></section><section class="item-row"><div class="item-row-heading"><h3>신발</h3><small>${b.core.length >= 6 ? '일반 빌드의 이동 속도 아이템 · 풀슬롯에서는 교체 가능' : '최종 6칸 중 1칸 · 상대 조합에 따라 선택'}</small></div><div class="item-grid">${itemCard(b.boots, '신발 후보') || '<p class="coverage">유효한 신발 후보가 없습니다.</p>'}</div></section>${b.alternatives.length ? `<section class="item-row"><div class="item-row-heading"><h3>상황별 대안</h3><small>위 기본 초안에 추가하지 않고 교체 검토</small></div><div class="item-grid alternatives">${b.alternatives.map(i => itemCard(i, '교체 후보')).join('')}</div></section>` : ''}<details class="build-notes"><summary>초안을 해석하는 방법과 데이터 한계</summary><ul>${b.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></details><p class="build-disclaimer">아이콘과 가격은 Riot Data Dragon의 현재 로드된 패치 데이터를 사용합니다. 예제 모드에서는 가격과 이미지가 검증되지 않습니다. 챔피언별 최적 빌드가 아닌 유형별 템플릿입니다.</p>`;
   renderExternalBuild();
 }
-function resolveChampion(value) {
-  const token = String(value || '')
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-  return (
-    catalog.champions.find(c =>
-      [c.id, c.key, c.name].some(
-        v =>
-          String(v || '')
-            .toLocaleLowerCase()
-            .replace(/[^a-z0-9]/g, '') === token,
-      ),
-    )?.id || null
-  );
-}
 function renderExternalBuild() {
   const host = $('#external-build');
   if (!host) return;
@@ -555,9 +541,8 @@ function renderOpggFields() {
         const choices = outputFieldOptions(schema),
           selected = suggestedOutputFields(schema);
         if (!choices.length) {
-          const defaults =
-            tool.name === 'lol_get_champion_analysis' ? OPGG_ITEM_BUILD_FIELDS : suggestedOutputFields(schema);
-          return `<label>응답 필드 선택<input name="${esc(key)}" value="${esc(defaults.join(','))}" placeholder="예: data.win_rate, data.pick_rate" ${(tool.inputSchema.required || []).includes(key) ? 'required' : ''}><small>${esc(schema.description || schema.items?.description || 'OP.GG 항목 필드와 아이템 빌드 경로를 기본으로 요청합니다. 필요하면 쉼표로 구분해 수정하세요.')}</small></label>`;
+          const defaults = defaultOutputFields(tool.name, state.role);
+          return `<label class="output-fields">응답 필드 선택<input name="${esc(key)}" value="${esc(defaults.join(', '))}" placeholder="예: data.summary.average_stats.{win_rate,pick_rate}" ${(tool.inputSchema.required || []).includes(key) ? 'required' : ''}><small>요약 통계·트렌드·${tool.name === 'lol_get_champion_analysis' ? '아이템 빌드' : '내 역할 라인 메타'} 필드를 기본으로 요청합니다. 쉼표로 구분해 수정할 수 있습니다.</small>${schema.description ? `<details><summary>OP.GG가 허용하는 필드 목록</summary><pre>${esc(schema.description)}</pre></details>` : ''}</label>`;
         }
         return `<fieldset class="output-field-picker"><legend>응답 필드 · 필요한 통계 선택</legend><details open><summary>필드 ${choices.length}개 · ${selected.length}개 기본 선택</summary><div>${choices.map((field, index) => `<label><input type="checkbox" name="${esc(key)}" value="${esc(field)}" ${selected.includes(field) ? 'checked' : index === 0 && !selected.length ? 'checked' : ''}> ${esc(field)}</label>`).join('')}</div></details></fieldset>`;
       }
@@ -581,7 +566,8 @@ function renderOpggFields() {
             ? /id/i.test(key)
               ? champion?.key
               : champion?.id
-            : schema.default) ??
+            : // 앱 범위(소환사의 협곡 랭크)에 맞춘 기본값. 스키마 enum에 없으면 matchEnum이 비운다.
+              (schema.default ?? (key === 'game_mode' ? 'ranked' : undefined))) ??
         '';
       if (schema.enum) value = matchEnum(value, schema.enum) ?? '';
       const required = (tool.inputSchema.required || []).includes(key),
@@ -623,27 +609,20 @@ $('#opgg-form').onsubmit = async e => {
   try {
     const result = await api('/api/opgg/query', {tool: tool.name, arguments: args}),
       fetchedAt = result.fetchedAt || new Date().toISOString();
-    const scope = Object.entries(args)
-        .filter(([k]) => k !== 'desired_output_fields')
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(' · '),
-      stats = tool.name === 'lol_get_champion_analysis' ? parseChampionAnalysisStats(result.result) : null;
-    const summary = stats
-      ? `<section class="opgg-stats"><b>OP.GG 집계 참고 · 픽 랭킹에는 미반영</b><p>승률 ${(stats.winRate * 100).toFixed(1)}% · 픽률 ${(stats.pickRate * 100).toFixed(1)}% · 밴률 ${(stats.banRate * 100).toFixed(1)}%</p><small>play ${stats.play.toLocaleString()} · tier ${stats.tier} · rank ${stats.rank}</small></section>`
-      : '';
-    const missing = missingRequestedFilters(tool),
-      scopeWarning = missing.length
-        ? `선택한 도구는 ${missing.map(filterLabel).join('·')} 조건을 요청에 넣지 않았습니다. 응답 범위도 미확인으로 취급합니다.`
-        : '요청 인자를 표시한 것이며, 응답 범위도 별도 확인 전까지 미확인으로 취급합니다.';
+    const normalized = normalizeOpggCall(result, catalog);
     if (tool.name === 'lol_get_champion_analysis') {
-      const championId = resolveChampion(args.champion);
+      const championId = resolveProviderChampion(args.champion, catalog);
       externalItemBuild = championId
         ? parseOpggItemBuild(result.result, catalog, {championId, arguments: args, fetchedAt})
         : {status: 'unavailable', reason: '조회 챔피언을 현재 Riot 카탈로그와 연결할 수 없습니다.'};
       renderExternalBuild();
     }
+    const itemNote =
+      tool.name === 'lol_get_champion_analysis' && externalItemBuild?.status === 'ready'
+        ? '<p class="coverage">아이템 빌드 통계는 아이템 페이지에서 현재 패치 구매 조건을 확인해 별도로 표시합니다.</p>'
+        : '';
     $('#opgg-result').innerHTML =
-      `<p><b>OP.GG 조회 결과</b> · ${esc(new Date(fetchedAt).toLocaleString('ko-KR'))}</p><p>요청 범위: ${esc(scope)}</p>${summary}<p class="opgg-warning">${esc(scopeWarning)} 지역·패치 통계 범위는 자동 추천 점수에 반영하지 않습니다. 조회 아이템 후보는 아이템 페이지에서 현재 패치 구매 조건을 확인해 별도로 표시합니다.</p><details><summary>원본 응답 보기</summary><pre>${esc(resultText(result.result)) || '표시할 데이터가 없습니다.'}</pre></details>`;
+      `${renderMetaResult(normalized, {nameOf: name, pool: state.pool, fetchedAt})}${itemNote}<details><summary>원본 응답 보기</summary><pre>${esc(resultText(result.result)) || '표시할 데이터가 없습니다.'}</pre></details>`;
   } catch (err) {
     if (tool.name === 'lol_get_champion_analysis') {
       externalItemBuild = {status: 'unavailable', reason: `OP.GG 조회 실패: ${err.message}`};
