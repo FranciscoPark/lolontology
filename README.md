@@ -77,14 +77,15 @@ npm test         # 단위·계약 테스트
 npm run check    # 모든 JS 문법 검사 + Prettier 포맷 검사
 npm run format   # Prettier 적용
 npm run smoke    # dist 빌드 후 headless Chrome에서 콘솔 오류·첫 화면 렌더링 확인
-npm run qa       # 로컬 서버 + headless Chrome으로 세 페이지 사용자 흐름 14개 검사
+npm run qa       # 로컬 서버 + headless Chrome으로 사용자 흐름 16개 검사 (OP.GG 장애 시 SKIP)
+npm run validate-data  # 저장된 패치 데이터에서 템플릿 아이템·프로필 유효성 검사
 ```
 
 추천 제약·개인화·조합 반응·아이템 적합성·그래프 인덱스와 이웃 상한·MCP 허용 도구·입력 검증·JSON/SSE 처리·단일 HTML 번들 계약 테스트 포함. 실제 밸런스 품질이나 승률 개선을 검증한 테스트가 아니다. `npm run smoke`는 Chrome이 필요하며 `CHROME_PATH`로 경로를 지정할 수 있다.
 
 `npm run qa`는 역할 변경, 밴·픽 입력과 중복 방지, 추천 제외, 숙련도 반영, 픽→아이템 이동, 새로고침 복원, 초기화, OP.GG 연결 실패, 백엔드 실패 시 캐시 유지, 저장 데이터 삭제, 온톨로지 빈 결과·미주석·패치 불일치 상태를 실제 Chrome에서 검사한다. 공식 데이터 단계는 인터넷 연결이 필요하다.
 
-서버는 `127.0.0.1` Host만 API 요청을 허용한다. `http://localhost:4173`으로 열면 API가 403을 반환하므로 `http://127.0.0.1:4173`을 사용한다.
+서버는 `127.0.0.1`·`localhost` Host와 같은 Origin의 API 요청만 허용한다. OP.GG 프록시는 분당 20회로 제한한다.
 
 ## 구조
 
@@ -103,6 +104,10 @@ scripts/build.mjs          app.js의 import 그래프를 따라 단일 HTML 번�
 scripts/check.mjs          전체 JS 문법 검사
 scripts/smoke-dist.mjs     headless Chrome dist smoke 검사
 scripts/qa-browser.mjs     headless Chrome 사용자 흐름 QA
+scripts/validate-data.mjs  패치별 편집 데이터 유효성 검사
+src/opgg-text.js           OP.GG class-style 응답 선언 기반 파서
+src/meta-estimate.js       OP.GG 통계 MetaEstimate 정규화·추천 반영 gate
+src/opgg-view.js           OP.GG 범위 표·메타 표 렌더링
 tests/                     오프라인 기능·전송·번들 계약 테스트
 tests/fixtures/opgg/       2026-11-08 OP.GG MCP 실응답 fixture
 docs/                      조사, 시스템 계약, 검증 기록

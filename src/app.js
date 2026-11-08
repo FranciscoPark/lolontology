@@ -496,8 +496,16 @@ async function api(path, body) {
     ...(body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {}),
     signal: AbortSignal.timeout(65000),
   });
-  const data = await r.json();
-  if (!r.ok) throw Error(data.error || '연결 실패');
+  const text = await r.text();
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch {}
+  if (!r.ok) {
+    const reason = data?.error || (r.status === 403 ? '로컬 앱 주소(http://127.0.0.1)로 열어야 합니다' : '');
+    throw Error(`${reason || '서버 오류'} (HTTP ${r.status})`);
+  }
+  if (data === null) throw Error('서버 응답이 JSON이 아닙니다');
   return data;
 }
 $('#connect-opgg').onclick = async () => {
@@ -721,7 +729,7 @@ $('#pool-only').onchange = e => {
   save();
   render();
 };
-$('#refresh-data').onclick = refresh;
+$('#refresh-data').onclick = () => refresh();
 $('#reset').onclick = () => {
   const {pool, personal, filters, poolOnly} = state;
   state = {...emptyState(), pool, personal, filters, poolOnly};

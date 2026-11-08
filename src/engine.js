@@ -213,6 +213,8 @@ const BUILDS = {
   enchanter: {start: '3865', core: ['6617', '3504', '3107', '3190', '3109'], boots: '3158', label: '아군 강화·보호'},
 };
 export const BUILD_TEMPLATES = BUILDS;
+// buildDraft가 상대 조합에 따라 직접 고르는 아이템. scripts/validate-data.mjs가 패치마다 검사한다.
+export const SITUATIONAL_ITEMS = ['3111', '3047', '3865', '3165', '3033', '3102', '3156', '3135', '3036'];
 export function fallbackBuildFamily(champion, role) {
   const tags = new Set(champion?.tags || []);
   if (role === 'TOP') return tags.has('Tank') ? 'tank' : tags.has('Mage') ? 'mage' : 'fighter';
