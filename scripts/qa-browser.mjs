@@ -6,6 +6,10 @@ import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
+if (typeof WebSocket === 'undefined') {
+  console.error('npm run qa는 전역 WebSocket이 있는 Node.js 22 이상이 필요합니다.');
+  process.exit(2);
+}
 const chromePath = [
   process.env.CHROME_PATH,
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',

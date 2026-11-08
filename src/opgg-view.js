@@ -51,7 +51,7 @@ export function renderMetaResult(normalized, {nameOf = id => id, pool = [], fetc
     return `${heading}<p class="opgg-warning">통계를 정규화하지 못했습니다: ${escapeHtml(normalized.reason)}</p>`;
   const [first] = normalized.estimates;
   const provider = `<p class="coverage">출처: ${escapeHtml(first.source)} · ${escapeHtml(first.tool)} · 제공자 버전 ${escapeHtml(first.providerVersion)} · 표본 정의 ${escapeHtml(scopeValue(first.sampleSize))}</p>`;
-  let body = '';
+  let body;
   if (first.kind === 'champion-position-summary') {
     const s = first.statistic;
     body = `<section class="opgg-stats"><b>${escapeHtml(first.championId ? nameOf(first.championId) : first.providerChampion)} · OP.GG 집계</b><p>승률 ${percent(s.winRate)} · 픽률 ${percent(s.pickRate)} · 밴률 ${percent(s.banRate)}</p><small>play ${number(s.play)} · OP.GG 티어 ${number(s.providerTier)} · 순위 ${number(s.providerRank)} · ${escapeHtml(s.definition)}</small></section>`;

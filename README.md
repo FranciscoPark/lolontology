@@ -4,7 +4,7 @@
 
 ## 실행
 
-Node.js 20.11 이상. 실행에는 외부 npm 의존성이나 데이터베이스가 필요 없다. 포맷 검사 같은 개발 도구(Prettier)만 `npm install`로 설치한다.
+Node.js 20.11 이상. 실행에는 외부 npm 의존성이나 데이터베이스가 필요 없다. 린트·포맷 같은 개발 도구(ESLint, Prettier)만 `npm install`로 설치한다. `.github/workflows/ci.yml`은 원격 저장소에 올리면 PR·push마다 검사·테스트·빌드·smoke를 실행한다.
 
 ```sh
 npm start
@@ -75,10 +75,10 @@ open dist/index.html
 ```sh
 npm install      # 개발 도구(Prettier) 설치, 최초 1회
 npm test         # 단위·계약 테스트
-npm run check    # 모든 JS 문법 검사 + Prettier 포맷 검사
+npm run check    # 모든 JS 문법 검사 + ESLint + Prettier 포맷 검사
 npm run format   # Prettier 적용
 npm run smoke    # dist 빌드 후 headless Chrome에서 콘솔 오류·첫 화면 렌더링 확인
-npm run qa       # 로컬 서버 + headless Chrome으로 사용자 흐름 16개 검사 (OP.GG 장애 시 SKIP)
+npm run qa       # 로컬 서버 + headless Chrome으로 사용자 흐름 17개 검사 (Node 22+, OP.GG 장애 시 SKIP)
 npm run validate-data  # 저장된 패치 데이터에서 템플릿 아이템·프로필 유효성 검사
 ```
 

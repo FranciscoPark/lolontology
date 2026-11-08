@@ -15,7 +15,7 @@ test('picked opponents, allies and bans cannot be recommended', () => {
   for (const id of ['Ahri', 'Yasuo', 'Zed']) assert(!ids.includes(id));
 });
 test('own selected slot remains comparable, but cannot be picked twice', () => {
-  let s = assign(emptyState(), 'allies', 2, 'Ahri', catalog);
+  const s = assign(emptyState(), 'allies', 2, 'Ahri', catalog);
   assert(score(s, 'Ahri'));
   assert.throws(() => assign(s, 'enemies', 2, 'Ahri', catalog), /이미/);
   assert.equal(assign(s, 'allies', 2, 'Ahri', catalog).allies[2], 'Ahri');

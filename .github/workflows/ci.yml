@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      browser_qa:
+        description: '실제 Data Dragon·OP.GG를 호출하는 브라우저 QA도 실행'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      # ubuntu-latest 러너에는 Google Chrome이 설치되어 있다.
+      - run: npm run smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+  # 외부 공개 서비스를 실제로 호출하므로 수동 실행에서만 돌린다. OP.GG 장애는 SKIP으로 기록된다.
+  browser-qa:
+    if: github.event_name == 'workflow_dispatch' && inputs.browser_qa
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run qa
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
