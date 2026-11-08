@@ -245,6 +245,35 @@ try {
     assert(before !== undefined && after === before + 24, `점수 변화 ${before} → ${after}`);
     return `오리아나 ${before} → ${after}`;
   });
+  await check('챔피언 풀 플레이 역할 지정', async () => {
+    const togglePoolOnly = () =>
+      evaluate(
+        `(() => { const box = document.querySelector('#pool-only'); box.checked = !box.checked; box.dispatchEvent(new Event('change')); })()`,
+      );
+    const togglePool = async () => {
+      await click('#edit-pool');
+      await waitFor(`document.querySelector('#picker').open`);
+      await click('[data-champion="Rell"]');
+    };
+    await togglePool();
+    await waitFor(`document.querySelector('input[data-personal="roles"][data-id="Rell"][value="SUPPORT"]')`);
+    await click('input[data-personal="roles"][data-id="Rell"][value="SUPPORT"]');
+    await click('#close-picker');
+    await togglePoolOnly();
+    try {
+      const mid = (await cards()).map(card => card.id);
+      assert(!mid.includes('Rell'), `미드 후보에 렐: ${mid}`);
+      await click('[data-role="SUPPORT"]');
+      const support = await cards();
+      assert(support.find(card => card.id === 'Rell')?.insufficient, `서포터 후보: ${support.map(card => card.id)}`);
+    } finally {
+      await click('[data-role="MID"]');
+      await togglePoolOnly();
+      await togglePool();
+      await click('#close-picker');
+    }
+    return '서포터로 지정한 렐이 서포터에서만 데이터 부족 후보로 표시';
+  });
   await check('후보 선택 후 아이템 초안 이동', async () => {
     await click('[data-pick="Orianna"]');
     await waitFor(`location.hash === '#items'`);

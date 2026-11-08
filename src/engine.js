@@ -37,6 +37,8 @@ export function normalizeState(raw, catalog) {
       state.personal[id] = {
         preference: [0, 1, 2].includes(p.preference) ? p.preference : 0,
         mastery: [0, 1, 2, 3].includes(p.mastery) ? p.mastery : null,
+        // 사용자가 이 챔피언을 플레이하는 역할. 비어 있으면 미지정이다.
+        roles: Array.isArray(p.roles) ? ROLES.filter(role => p.roles.includes(role)) : [],
       };
   }
   for (const k of ['region', 'tier', 'patch'])
@@ -94,16 +96,26 @@ export function recommendPicks(state, catalog) {
   return catalog.champions
     .filter(c => {
       if (unavailable.has(c.id) || (state.poolOnly && !state.pool.includes(c.id))) return false;
+      // 사용자가 플레이 역할을 지정했다면 그 역할에서만 후보로 둔다.
+      const userRoles = state.pool.includes(c.id) ? state.personal?.[c.id]?.roles || [] : [];
+      if (userRoles.length && !userRoles.includes(state.role)) return false;
       // 의미 주석이 있으면 역할 프로필로, 없으면 사용자가 직접 챔피언 풀에 넣은 경우에만 후보로 둔다.
       return PROFILES[c.id] ? PROFILES[c.id].roles.includes(state.role) : state.pool.includes(c.id);
     })
     .map(c => {
       const p = PROFILES[c.id],
         annotated = Boolean(p),
+        userRole = (state.personal?.[c.id]?.roles || []).includes(state.role),
         reasons = [
           annotated
             ? {rule: 'role', text: `${ROLE_NAMES[state.role]} 역할 프로필이 있는 후보`, points: 30}
-            : {rule: 'role-unknown', text: '역할 주석 없음 · 내 챔피언 풀 기준 후보 (역할 가산점 없음)', points: 0},
+            : userRole
+              ? {
+                  rule: 'role-user',
+                  text: `내가 지정한 플레이 역할(${ROLE_NAMES[state.role]}) · 역할 주석 없음 (역할 가산점 없음)`,
+                  points: 0,
+                }
+              : {rule: 'role-unknown', text: '역할 주석 없음 · 내 챔피언 풀 기준 후보 (역할 가산점 없음)', points: 0},
         ],
         cautions = [];
       const add = (rule, text, points) => reasons.push({rule, text, points});
@@ -135,7 +147,9 @@ export function recommendPicks(state, catalog) {
         add('sustained', '상대 전방을 상대할 지속 피해 후보', 8);
       if (!annotated)
         cautions.push(
-          '의미 주석이 없어 역할·조합 적합도를 평가하지 않았습니다. 이 역할에서 플레이하는 챔피언인지 직접 확인하세요.',
+          userRole
+            ? '의미 주석이 없어 조합 적합도를 평가하지 않았습니다. 역할은 내가 지정한 값입니다.'
+            : '의미 주석이 없어 역할·조합 적합도를 평가하지 않았습니다. 이 역할에서 플레이하는 챔피언인지 직접 확인하세요. 챔피언 풀 편집에서 플레이 역할을 지정할 수 있습니다.',
         );
       if (ally.total < 4) cautions.push('미입력 아군에 따라 순위가 바뀔 수 있습니다');
       if (enemy.total < 5) cautions.push('상대 조합이 아직 완성되지 않았습니다');

@@ -439,18 +439,22 @@ function renderPersonal() {
   el.innerHTML =
     state.pool
       .map(id => {
-        const p = state.personal[id] || {preference: 0, mastery: null};
-        return `<div class="personal-row"><strong>${esc(name(id))}</strong><label>선호도<select data-personal="preference" data-id="${esc(id)}">${['보통', '선호', '최선호'].map((t, v) => `<option value="${v}" ${p.preference === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label><label>숙련도 · 자가평가<select data-personal="mastery" data-id="${esc(id)}"><option value="" ${p.mastery === null ? 'selected' : ''}>미입력</option>${['연습 중', '기본 가능', '익숙함', '주력'].map((t, v) => `<option value="${v}" ${p.mastery === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>`;
+        const p = state.personal[id] || {preference: 0, mastery: null, roles: []};
+        const roles = `<fieldset class="personal-roles"><legend>플레이 역할 · 미지정이면 프로필 기준</legend>${ROLES.map(role => `<label><input type="checkbox" data-personal="roles" data-id="${esc(id)}" value="${role}" ${(p.roles || []).includes(role) ? 'checked' : ''}> ${ROLE_NAMES[role]}</label>`).join('')}</fieldset>`;
+        return `<div class="personal-row"><strong>${esc(name(id))}${PROFILES[id] ? '' : ' <small class="data-badge">주석 없음</small>'}</strong><label>선호도<select data-personal="preference" data-id="${esc(id)}">${['보통', '선호', '최선호'].map((t, v) => `<option value="${v}" ${p.preference === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label><label>숙련도 · 자가평가<select data-personal="mastery" data-id="${esc(id)}"><option value="" ${p.mastery === null ? 'selected' : ''}>미입력</option>${['연습 중', '기본 가능', '익숙함', '주력'].map((t, v) => `<option value="${v}" ${p.mastery === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>${roles}</div>`;
       })
       .join('') || '<p class="microcopy">아래에서 챔피언을 추가한 뒤 선호도와 숙련도를 설정하세요.</p>';
 }
 $('#personal-editor').addEventListener('change', e => {
   const {personal: key, id} = e.target.dataset;
   if (!key || !id) return;
-  state.personal[id] = {
-    ...(state.personal[id] || {preference: 0, mastery: null}),
-    [key]: e.target.value === '' ? null : Number(e.target.value),
-  };
+  const current = state.personal[id] || {preference: 0, mastery: null, roles: []};
+  if (key === 'roles') {
+    const roles = new Set(current.roles || []);
+    if (e.target.checked) roles.add(e.target.value);
+    else roles.delete(e.target.value);
+    state.personal[id] = {...current, roles: ROLES.filter(role => roles.has(role))};
+  } else state.personal[id] = {...current, [key]: e.target.value === '' ? null : Number(e.target.value)};
   save();
   render();
 });

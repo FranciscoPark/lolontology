@@ -233,3 +233,30 @@ test('unannotated pool champions get no composition credit, only personal eviden
 test('default statistics tier is unspecified so tier-less OP.GG tools are usable', () => {
   assert.equal(emptyState().filters.tier, '');
 });
+
+test('user-assigned play roles restrict pool champions to those roles', () => {
+  const c = withUnprofiled();
+  const s = emptyState();
+  s.pool = ['Rell', 'Orianna'];
+  s.personal = {
+    Rell: {preference: 0, mastery: 2, roles: ['SUPPORT']},
+    Orianna: {preference: 0, mastery: null, roles: ['TOP']},
+  };
+  s.role = 'MID';
+  assert(!recommendPicks(s, c).some(pick => pick.id === 'Rell'), '지정 역할이 아니면 미주석 챔피언은 제외');
+  assert(!recommendPicks(s, c).some(pick => pick.id === 'Orianna'), '지정 역할이 아니면 프로필 챔피언도 제외');
+  s.role = 'SUPPORT';
+  const rell = recommendPicks(s, c).find(pick => pick.id === 'Rell');
+  assert.equal(rell.reasons[0].rule, 'role-user');
+  assert(rell.cautions.some(t => t.includes('내가 지정한 값')));
+  assert(!rell.cautions.some(t => t.includes('직접 확인')));
+  // 풀 밖 챔피언의 저장된 역할은 후보 제한에 쓰지 않는다.
+  s.pool = ['Rell'];
+  s.role = 'MID';
+  assert(recommendPicks(s, c).some(pick => pick.id === 'Orianna'));
+});
+test('saved play roles are normalized to known roles', () => {
+  const state = normalizeState({personal: {Ahri: {preference: 1, roles: ['MID', 'BOGUS', 'TOP', 'MID']}}}, catalog);
+  assert.deepEqual(state.personal.Ahri.roles, ['TOP', 'MID']);
+  assert.deepEqual(normalizeState({personal: {Ahri: {preference: 1}}}, catalog).personal.Ahri.roles, []);
+});

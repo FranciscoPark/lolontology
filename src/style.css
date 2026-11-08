@@ -1702,3 +1702,21 @@ select {
   padding-top: 14px;
   border-top: 1px solid var(--line);
 }
+.personal-roles {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  border: 0;
+  padding: 0;
+  margin: 2px 0 0;
+}
+.personal-roles legend {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.personal-roles label {
+  font-size: 10px;
+  color: var(--text);
+}
