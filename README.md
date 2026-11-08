@@ -4,7 +4,7 @@
 
 ## 실행
 
-Node.js 20.11 이상. 외부 npm 의존성이나 데이터베이스 없이 수동 추천과 JavaScript 온톨로지 화면을 체험할 수 있다.
+Node.js 20.11 이상. 실행에는 외부 npm 의존성이나 데이터베이스가 필요 없다. 포맷 검사 같은 개발 도구(Prettier)만 `npm install`로 설치한다.
 
 ```sh
 npm start
@@ -42,7 +42,7 @@ open dist/index.html
 
 ## 추천 범위
 
-- 의미 프로필: 44개 챔피언. 원본 목록은 공식 데이터 연결 시 확장된다. 의미 주석이 없는 챔피언은 픽 추천에서 제외되고, 아이템 초안은 포지션·Data Dragon 태그 기반 일반 템플릿으로 제한해 표시한다.
+- 의미 프로필: 44개 챔피언(현재 카탈로그 173명). 의미 주석이 없는 챔피언은 사용자가 내 챔피언 풀에 넣었을 때만 `데이터 부족` 후보로 표시한다. 이때 역할 가산점과 조합 규칙은 적용하지 않고 풀·선호도·숙련도만 반영하며, 해당 역할에서 플레이하는 챔피언인지 사용자가 확인해야 한다. 아이템 초안은 포지션·Data Dragon 태그 기반 일반 템플릿으로 제한해 표시한다.
 - 온톨로지 페이지는 전체 Champion/Item catalog를 검색하고 패치, 역할, 관계 유형으로 필터링한다. 역할·효과 같은 의미 관계는 현재 프로토타입 44개 프로필 범위만 표시한다. OP.GG 통계는 아직 온톨로지나 추천 점수에 반영하지 않는다.
 - 픽 점수 = 역할 기본값 + 챔피언 풀 + 선호도 + 자가평가 숙련도 + 조합 보완 규칙. 승률이나 학습된 가치 함수가 아니다.
 - 골드·아이템·경기 상태의 실시간 수집은 없다.
@@ -71,26 +71,36 @@ open dist/index.html
 ## 검증
 
 ```sh
-npm test
-npm run check
-npm run build
+npm install      # 개발 도구(Prettier) 설치, 최초 1회
+npm test         # 단위·계약 테스트
+npm run check    # 모든 JS 문법 검사 + Prettier 포맷 검사
+npm run format   # Prettier 적용
+npm run smoke    # dist 빌드 후 headless Chrome에서 콘솔 오류·첫 화면 렌더링 확인
 ```
 
-추천 제약·개인화·조합 반응·아이템 적합성·MCP 허용 도구·입력 검증·JSON/SSE 처리 테스트 포함. 실제 밸런스 품질이나 승률 개선을 검증한 테스트가 아니다.
+추천 제약·개인화·조합 반응·아이템 적합성·그래프 인덱스와 이웃 상한·MCP 허용 도구·입력 검증·JSON/SSE 처리·단일 HTML 번들 계약 테스트 포함. 실제 밸런스 품질이나 승률 개선을 검증한 테스트가 아니다. `npm run smoke`는 Chrome이 필요하며 `CHROME_PATH`로 경로를 지정할 수 있다.
 
-현재 환경에서 로컬 포트 바인딩이 `EPERM`으로 차단되어 브라우저 렌더링·실제 클릭 QA는 수행하지 못했다. 일반 터미널에서 실행 후 예시 조합, 개인 숙련도 변경, 밴 중복 방지, 새로고침 복원, 공식 데이터 연결, OP.GG 조회를 순서대로 확인해야 한다.
+2026-11-08 일반 터미널에서 `npm start`, Data Dragon 동기화, 스킬·OP.GG 도구 API, 서버 모드 화면의 새로고침 복원과 픽→아이템 이동을 headless Chrome으로 확인했다. 사람이 직접 하는 전체 클릭 QA와 OP.GG 연결 실패 화면 확인은 남아 있다.
+
+서버는 `127.0.0.1` Host만 API 요청을 허용한다. `http://localhost:4173`으로 열면 API가 403을 반환하므로 `http://127.0.0.1:4173`을 사용한다.
 
 ## 구조
 
 ```text
-src/ontology.js       편집한 챔피언 역할·효과 관계
-src/engine.js         후보 제약, 개인화·조합 점수, 빌드 초안
-src/catalog.js        Data Dragon 로더와 명시적 예제 데이터
-src/graph.js          JavaScript 온톨로지 객체와 검색·아이템 관계 조회
-src/opgg-ui.js        OP.GG 필터 분류·응답 표시 보조
-src/app.js            수동 입력·개인 설정·조회 UI
-scripts/opgg.mjs      읽기 전용 MCP 전송·인자 검증
-scripts/serve.mjs     로컬 정적 서버·고정 OP.GG 프록시
-tests/               오프라인 기능·전송 계약 테스트
-docs/                조사, 시스템 계약, 검증 기록
+src/ontology.js            편집한 챔피언 역할·효과 관계
+src/engine.js              후보 제약, 개인화·조합 점수, 빌드 초안
+src/catalog.js             Data Dragon 로더와 명시적 예제 데이터
+src/graph.js               JavaScript 온톨로지 객체(인접 인덱스)와 검색·이웃·아이템 관계 조회
+src/opgg-ui.js             OP.GG 필터 분류·응답 표시 보조
+src/opgg-build.js          OP.GG 아이템 빌드 응답 파서·현재 패치 구매 검증
+src/app.js                 수동 입력·개인 설정·조회 UI
+scripts/serve.mjs          로컬 정적 서버·Data Dragon API·고정 OP.GG 프록시
+scripts/data-dragon-store.mjs  Data Dragon 스냅샷 동기화·원자 저장·스킬 지연 캐시
+scripts/opgg.mjs           읽기 전용 MCP 전송·인자 검증
+scripts/build.mjs          app.js의 import 그래프를 따라 단일 HTML 번들 생성
+scripts/check.mjs          전체 JS 문법 검사
+scripts/smoke-dist.mjs     headless Chrome dist smoke 검사
+tests/                     오프라인 기능·전송·번들 계약 테스트
+docs/                      조사, 시스템 계약, 검증 기록
+Plans.md                   구현 작업·의존성·완료 기준
 ```

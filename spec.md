@@ -70,4 +70,4 @@ Navigation, patch/data status, and profile preferences are shared across pages. 
 - [Riot LoL Developer Docs](https://developer.riotgames.com/docs/lol)
 - [OP.GG MCP](https://op.gg/open-source/opgg-mcp)
 - [현재 구현/검증 기록](docs/implementation-status.md)
-- [구현 계획](plan.md)
+- [구현 계획](Plans.md)
