@@ -9,7 +9,8 @@
     "test": "node --test",
     "check": "node scripts/check.mjs && prettier --check .",
     "format": "prettier --write .",
-    "smoke": "node scripts/build.mjs && node scripts/smoke-dist.mjs"
+    "smoke": "node scripts/build.mjs && node scripts/smoke-dist.mjs",
+    "qa": "node scripts/qa-browser.mjs"
   },
   "engines": {
     "node": ">=20.11"

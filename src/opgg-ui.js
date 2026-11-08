@@ -88,17 +88,32 @@ export function resultText(result) {
     .map(c => c.text)
     .join('\n');
 }
+// OP.GG 텍스트 응답은 `class Data: summary,core_items,...` 줄로 각 class의 위치 인자 이름을 선언한다.
+// 선언 순서는 요청한 필드에 따라 바뀌므로 위치를 고정 가정하지 않고 이 선언으로 이름을 붙인다.
+export function parseClassSchema(text) {
+  const schema = {};
+  for (const [, name, fields] of String(text).matchAll(/^class\s+(\w+):\s*([\w,\s]*)$/gm))
+    schema[name] = fields
+      .split(',')
+      .map(field => field.trim())
+      .filter(Boolean);
+  return schema;
+}
 export function parseChampionAnalysisStats(result) {
   const text = resultText(result),
     match = text.match(/AverageStats\(([^()]*)\)/);
   if (!match) return null;
   const values = match[1].split(',').map(value => Number(value.trim()));
-  if (values.length !== 6 || values.some(value => !Number.isFinite(value))) return null;
-  const [play, winRate, pickRate, banRate, tier, rank] = values;
+  if (values.some(value => !Number.isFinite(value))) return null;
+  // 선언이 없을 때만 2026-10-08에 관측한 공식 6개 필드 순서를 사용한다.
+  const fields = parseClassSchema(text).AverageStats || ['play', 'win_rate', 'pick_rate', 'ban_rate', 'tier', 'rank'];
+  if (fields.length !== values.length) return null;
+  const named = Object.fromEntries(fields.map((field, index) => [field, values[index]]));
+  const {play, win_rate: winRate, pick_rate: pickRate, ban_rate: banRate, tier, rank} = named;
   if (
     !Number.isInteger(play) ||
     play < 0 ||
-    [winRate, pickRate, banRate].some(rate => rate < 0 || rate > 1) ||
+    [winRate, pickRate, banRate].some(rate => !Number.isFinite(rate) || rate < 0 || rate > 1) ||
     !Number.isInteger(tier) ||
     !Number.isInteger(rank)
   )

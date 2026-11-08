@@ -22,9 +22,11 @@ import {
   abilityImage,
 } from './catalog.js';
 import {emptyState, normalizeState, assign, composition, recommendPicks, buildDraft} from './engine.js';
-import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood} from './graph.js';
+import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood, ontologyInfo} from './graph.js';
 import {parseOpggItemBuild} from './opgg-build.js';
 const GRAPH_NODE_LIMIT = 24;
+const STATE_KEY = 'rift-draft-state-v1',
+  CATALOG_KEY = 'rift-draft-catalog-v1';
 const $ = s => document.querySelector(s),
   esc = v =>
     String(v ?? '').replace(
@@ -44,7 +46,7 @@ let catalog = fallbackCatalog(),
   graphRoot = null,
   graphRenderSeq = 0;
 try {
-  const cached = JSON.parse(localStorage.getItem('rift-draft-catalog-v1'));
+  const cached = JSON.parse(localStorage.getItem(CATALOG_KEY));
   if (
     cached?.mode === 'official' &&
     /^\d+\.\d+\.\d+$/.test(cached.version) &&
@@ -58,7 +60,7 @@ try {
 } catch {}
 let stored = null;
 try {
-  stored = JSON.parse(localStorage.getItem('rift-draft-state-v1'));
+  stored = JSON.parse(localStorage.getItem(STATE_KEY));
   state = normalizeState(stored, catalog);
 } catch {}
 ontology = createOntology(catalog);
@@ -102,7 +104,7 @@ async function renderOntologyGraph(type, id, filters = {}) {
       catalog = {...catalog, abilities: {...(catalog.abilities || {}), [id]: abilities}};
       ontology = createOntology(catalog);
       try {
-        localStorage.setItem('rift-draft-catalog-v1', JSON.stringify(catalog));
+        localStorage.setItem(CATALOG_KEY, JSON.stringify(catalog));
       } catch {}
     } catch (error) {
       if (sequence !== graphRenderSeq) return;
@@ -169,12 +171,12 @@ function renderOntology() {
     role = $('#ontology-role').value,
     relationship = $('#ontology-relationship').value,
     root = $('#ontology-results');
-  $('#graph-status').textContent = ontology.versions.length
+  $('#graph-status').textContent = ontologyInfo(ontology).versions.length
     ? `JavaScript 온톨로지 · 챔피언 ${catalog.championVersion || catalog.version} · 아이템 ${catalog.itemVersion || catalog.version}`
     : 'JavaScript 온톨로지 · 예제 데이터';
   const results = searchOntology(ontology, type, q, patch, 30, {role, relationship});
   if (!results.length) {
-    root.innerHTML = `<div class="empty-state"><strong>조회 결과가 없습니다.</strong><p>${patch && !ontology.versions.includes(patch) ? '현재 카탈로그와 요청 패치가 다릅니다.' : patch ? '선택한 데이터 버전과 이 유형의 노드가 일치하지 않습니다.' : '검색어와 필터를 바꾸거나 Data Dragon을 불러오세요.'}</p></div>`;
+    root.innerHTML = `<div class="empty-state"><strong>조회 결과가 없습니다.</strong><p>${patch && !ontologyInfo(ontology).versions.includes(patch) ? '현재 카탈로그와 요청 패치가 다릅니다.' : patch ? '선택한 데이터 버전과 이 유형의 노드가 일치하지 않습니다.' : '검색어와 필터를 바꾸거나 Data Dragon을 불러오세요.'}</p></div>`;
     $('#ontology-graph').innerHTML = '<p class="muted">검색 결과가 있으면 관계 그래프를 표시합니다.</p>';
     return;
   }
@@ -202,7 +204,7 @@ function renderOntology() {
 function save() {
   stored = state;
   try {
-    localStorage.setItem('rift-draft-state-v1', JSON.stringify(state));
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
   } catch {
     toast('이 브라우저에서는 입력을 저장할 수 없습니다.');
   }
@@ -360,7 +362,7 @@ function renderGraphBuild() {
     'core-5': '코어 5',
     'core-6': '코어 6',
   };
-  targetEl.innerHTML = `<div class="graph-build-heading"><strong>온톨로지 연결 후보</strong><span>${esc(catalog.itemVersion || ontology.version || 'patch unknown')} · prototype</span></div><div class="graph-build-items">${rows
+  targetEl.innerHTML = `<div class="graph-build-heading"><strong>온톨로지 연결 후보</strong><span>${esc(catalog.itemVersion || ontologyInfo(ontology).version || 'patch unknown')} · prototype</span></div><div class="graph-build-items">${rows
     .map(row => {
       const item = row.item,
         image = item ? itemImage(catalog, item.id) : null;
@@ -663,7 +665,7 @@ async function refresh({automatic = false} = {}) {
     catalog = mergeCachedAbilities(catalog, await loadOfficial({refresh: !automatic}));
     ontology = createOntology(catalog);
     try {
-      localStorage.setItem('rift-draft-catalog-v1', JSON.stringify(catalog));
+      localStorage.setItem(CATALOG_KEY, JSON.stringify(catalog));
     } catch {}
     state = normalizeState(stored || state, catalog);
     save();
@@ -785,3 +787,23 @@ const requestedPage = location.hash.slice(1);
 if (['ontology', 'banpick', 'items'].includes(requestedPage)) setPage(requestedPage);
 // Fetch only the local backend snapshot on entry; Riot polling runs on the backend.
 refresh({automatic: true});
+$('#clear-local-data').onclick = () => {
+  if (!confirm('이 브라우저에 저장된 밴픽 상태, 챔피언 풀·선호도·숙련도, 조회 조건, 카탈로그 캐시를 모두 삭제할까요?'))
+    return;
+  try {
+    localStorage.removeItem(STATE_KEY);
+    localStorage.removeItem(CATALOG_KEY);
+  } catch {
+    toast('이 브라우저의 저장소에 접근하지 못했습니다.');
+    return;
+  }
+  // 삭제 직후 다시 저장하지 않는다. 다음 입력부터 새로 저장된다.
+  stored = null;
+  state = emptyState();
+  externalItemBuild = null;
+  $('#opgg-result').innerHTML = '';
+  render();
+  renderOntology();
+  if (!$('#page-items').hidden) renderGraphBuild();
+  toast('저장 데이터를 삭제했습니다. 현재 화면의 공식 카탈로그는 새로고침하면 서버에서 다시 받습니다.');
+};

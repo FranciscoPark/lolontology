@@ -1,5 +1,5 @@
 import {isPurchasable} from './engine.js';
-import {resultText} from './opgg-ui.js';
+import {parseClassSchema, resultText} from './opgg-ui.js';
 
 function splitArguments(source) {
   const parts = [];
@@ -62,15 +62,18 @@ function parseArray(source) {
     return null;
   }
 }
-function parseCore(source) {
+const CORE_FIELDS = ['ids', 'ids_names', 'play', 'win', 'pick_rate'];
+function parseCore(source, fields = CORE_FIELDS) {
   const body = callBody(source, 'CoreItems');
   if (body === null) return null;
-  const [idsSource, namesSource, playSource, winSource, pickSource] = splitArguments(body),
-    ids = parseArray(idsSource),
-    names = parseArray(namesSource),
-    play = Number(playSource),
-    win = Number(winSource),
-    pickRate = Number(pickSource);
+  const values = splitArguments(body);
+  if (values.length !== fields.length) return null;
+  const raw = Object.fromEntries(fields.map((field, index) => [field, values[index]]));
+  const ids = parseArray(raw.ids),
+    names = parseArray(raw.ids_names),
+    play = Number(raw.play),
+    win = Number(raw.win),
+    pickRate = Number(raw.pick_rate);
   if (
     !ids ||
     !names ||
@@ -87,15 +90,17 @@ function parseCore(source) {
     return null;
   return {ids: ids.map(String), names, play, win, pickRate};
 }
-function parseCoreList(source) {
+function parseCoreList(source, fields) {
   const value = source.trim();
   if (value.startsWith('CoreItems(')) {
-    const core = parseCore(value);
+    const core = parseCore(value, fields);
     return core ? [core] : [];
   }
   const body = value.startsWith('[') && value.endsWith(']') ? value.slice(1, -1) : null;
   if (body === null) return [];
-  return splitArguments(body).map(parseCore).filter(Boolean);
+  return splitArguments(body)
+    .map(entry => parseCore(entry, fields))
+    .filter(Boolean);
 }
 
 const STAGES = [
@@ -117,10 +122,18 @@ export function parseOpggItemBuild(
   const text = resultText(result),
     body = callBody(text, 'Data');
   if (body === null) return {status: 'unavailable', reason: 'OP.GG 응답에 알려진 아이템 빌드 형식이 없습니다.'};
-  const fields = splitArguments(body);
-  if (fields.length < 7)
-    return {status: 'unavailable', reason: 'OP.GG 아이템 빌드 응답 필드가 예상한 형식과 다릅니다.'};
-  const raw = Object.fromEntries(STAGES.map(([key], index) => [key, parseCoreList(fields[index])])),
+  // 위치 인자의 이름은 응답의 `class Data:` 선언으로만 정한다. 선언이 없거나 개수가 다르면 추측하지 않는다.
+  const schema = parseClassSchema(text),
+    names = schema.Data,
+    values = splitArguments(body);
+  if (!names || names.length !== values.length)
+    return {status: 'unavailable', reason: 'OP.GG 응답에 필드 선언(class Data)이 없거나 값 개수와 다릅니다.'};
+  if (!STAGES.some(([key]) => names.includes(key)))
+    return {status: 'unavailable', reason: 'OP.GG 응답에 아이템 빌드 필드가 없습니다.'};
+  const coreFields = schema.CoreItems || CORE_FIELDS;
+  const raw = Object.fromEntries(
+      STAGES.map(([key]) => [key, names.includes(key) ? parseCoreList(values[names.indexOf(key)], coreFields) : []]),
+    ),
     omitted = [];
   const groups = [];
   for (const [key, label] of STAGES) {

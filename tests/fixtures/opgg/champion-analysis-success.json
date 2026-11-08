@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-11-08T05:22:34.652Z",
+  "source": "https://mcp-api.op.gg/mcp",
+  "tool": "lol_get_champion_analysis",
+  "arguments": {
+    "game_mode": "ranked",
+    "champion": "AHRI",
+    "position": "mid",
+    "desired_output_fields": [
+      "data.summary.average_stats.{ban_rate,pick_rate,play,rank,tier,win_rate}",
+      "data.starter_items",
+      "data.boots",
+      "data.core_items",
+      "data.fourth_items[]",
+      "data.fifth_items[]",
+      "data.sixth_items[]",
+      "data.last_items[]"
+    ]
+  },
+  "fetchedAt": "2026-11-08T05:22:35.093Z",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "class LolGetChampionAnalysis: data\nclass Data: summary,core_items,boots,starter_items,last_items,fourth_items,fifth_items,sixth_items\nclass Summary: average_stats\nclass AverageStats: play,win_rate,pick_rate,ban_rate,tier,rank\nclass CoreItems: ids,ids_names,play,win,pick_rate\n\nLolGetChampionAnalysis(Data(Summary(AverageStats(80342,0.51,0.12,0.03,1,2)),CoreItems([3118,4645,3157],[\"Malignance\",\"Shadowflame\",\"Zhonya's Hourglass\"],5265,2872,0.13),CoreItems([3020],[\"Sorcerer's Shoes\"],38236,19878,0.59),CoreItems([1056,2003,2003],[\"Doran's Ring\",\"Health Potion\",\"Health Potion\"],65494,33812,0.99),[CoreItems([3118],[\"Malignance\"],46295,23899,0.64),CoreItems([4645],[\"Shadowflame\"],35462,18735,0.49),CoreItems([3157],[\"Zhonya's Hourglass\"],23408,12964,0.32)],[CoreItems([3089],[\"Rabadon's Deathcap\"],5838,3441,0.33),CoreItems([3157],[\"Zhonya's Hourglass\"],4300,2564,0.25),CoreItems([3135],[\"Void Staff\"],1503,752,0.09)],[CoreItems([3089],[\"Rabadon's Deathcap\"],897,540,0.2),CoreItems([3135],[\"Void Staff\"],741,391,0.16),CoreItems([3157],[\"Zhonya's Hourglass\"],718,419,0.16)],[CoreItems([4629],[\"Cosmic Drive\"],13,9,0.19),CoreItems([3135],[\"Void Staff\"],11,5,0.16),CoreItems([4646],[\"Stormsurge\"],7,3,0.1)]))"
+      }
+    ]
+  }
+}

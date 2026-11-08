@@ -1611,3 +1611,13 @@ select {
 .pick-card.insufficient {
   border-style: dashed;
 }
+.privacy-panel {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.privacy-panel ul {
+  margin: 8px 0 12px;
+  padding-left: 18px;
+  line-height: 1.8;
+}

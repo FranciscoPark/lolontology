@@ -62,6 +62,7 @@ open dist/index.html
 - 내 티어와 `EMERALD_PLUS` 같은 통계 범위를 자동으로 동일시하지 않음.
 - 희망 패치·티어를 지원하지 않는 도구에는 해당 조건을 무시하고 호출하지 않음.
 - 요청 조건·조회 시각·응답을 함께 표시. 텍스트 응답은 실행하지 않고 이스케이프하여 표시.
+- 응답의 `class Data:` 필드 선언으로 아이템 그룹 이름을 붙인다. 선언이 없으면 추측하지 않고 미표시한다.
 - OP.GG champion analysis의 item build 응답은 별도 통계 영역에 표시한다. 픽 추천 점수와 편집 템플릿에 합산하지 않는다.
 
 실행 환경에서 OP.GG 공식 MCP endpoint의 공개 read-only `initialize`, `tools/list`, `lol_get_champion_analysis`를 확인했다. 아이템 build 경로와 class-style 응답을 fixture로 고정하고 adapter를 구현했다. 사용자가 `desired_output_fields`를 별도로 지정하지 않아도 관측된 아이템 빌드 필드를 기본 요청한다. 로컬 서버 proxy에서의 실조회 UI 검증과 OP.GG 응답의 실제 통계 patch/region 범위 확인은 남아 있다. 자세한 계약은 [OP.GG item build contract](docs/opgg-item-build-contract.md)에 기록했다.
@@ -76,11 +77,12 @@ npm test         # 단위·계약 테스트
 npm run check    # 모든 JS 문법 검사 + Prettier 포맷 검사
 npm run format   # Prettier 적용
 npm run smoke    # dist 빌드 후 headless Chrome에서 콘솔 오류·첫 화면 렌더링 확인
+npm run qa       # 로컬 서버 + headless Chrome으로 세 페이지 사용자 흐름 14개 검사
 ```
 
 추천 제약·개인화·조합 반응·아이템 적합성·그래프 인덱스와 이웃 상한·MCP 허용 도구·입력 검증·JSON/SSE 처리·단일 HTML 번들 계약 테스트 포함. 실제 밸런스 품질이나 승률 개선을 검증한 테스트가 아니다. `npm run smoke`는 Chrome이 필요하며 `CHROME_PATH`로 경로를 지정할 수 있다.
 
-2026-11-08 일반 터미널에서 `npm start`, Data Dragon 동기화, 스킬·OP.GG 도구 API, 서버 모드 화면의 새로고침 복원과 픽→아이템 이동을 headless Chrome으로 확인했다. 사람이 직접 하는 전체 클릭 QA와 OP.GG 연결 실패 화면 확인은 남아 있다.
+`npm run qa`는 역할 변경, 밴·픽 입력과 중복 방지, 추천 제외, 숙련도 반영, 픽→아이템 이동, 새로고침 복원, 초기화, OP.GG 연결 실패, 백엔드 실패 시 캐시 유지, 저장 데이터 삭제, 온톨로지 빈 결과·미주석·패치 불일치 상태를 실제 Chrome에서 검사한다. 공식 데이터 단계는 인터넷 연결이 필요하다.
 
 서버는 `127.0.0.1` Host만 API 요청을 허용한다. `http://localhost:4173`으로 열면 API가 403을 반환하므로 `http://127.0.0.1:4173`을 사용한다.
 
@@ -100,7 +102,9 @@ scripts/opgg.mjs           읽기 전용 MCP 전송·인자 검증
 scripts/build.mjs          app.js의 import 그래프를 따라 단일 HTML 번들 생성
 scripts/check.mjs          전체 JS 문법 검사
 scripts/smoke-dist.mjs     headless Chrome dist smoke 검사
+scripts/qa-browser.mjs     headless Chrome 사용자 흐름 QA
 tests/                     오프라인 기능·전송·번들 계약 테스트
+tests/fixtures/opgg/       2026-11-08 OP.GG MCP 실응답 fixture
 docs/                      조사, 시스템 계약, 검증 기록
 Plans.md                   구현 작업·의존성·완료 기준
 ```

@@ -172,10 +172,16 @@ function edgeTargets(graph, node) {
             role: edge.role,
             slot: edge.slot,
             patchValidated: edge.patchValidated,
+            version: edge.version ?? null,
           }
         : null;
     })
     .filter(Boolean);
+}
+
+// 화면이 그래프 내부 구조 대신 사용하는 요약 정보.
+export function ontologyInfo(graph) {
+  return {versions: [...graph.versions], version: graph.version, source: graph.source, nodeCount: graph.nodes.size};
 }
 
 export function ontologyNeighborhood(graph, type, id, filters = {}, limit = NEIGHBORHOOD_LIMIT) {

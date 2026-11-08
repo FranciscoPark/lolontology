@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-11-08T05:22:34.652Z",
+  "arguments": {
+    "game_mode": "ranked",
+    "champion": "NOT_A_CHAMPION",
+    "position": "mid",
+    "desired_output_fields": [
+      "data.summary.average_stats.{ban_rate,pick_rate,play,rank,tier,win_rate}",
+      "data.starter_items",
+      "data.boots",
+      "data.core_items",
+      "data.fourth_items[]",
+      "data.fifth_items[]",
+      "data.sixth_items[]",
+      "data.last_items[]"
+    ]
+  },
+  "error": "Unknown champion provided."
+}

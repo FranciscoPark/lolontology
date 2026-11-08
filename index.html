@@ -35,6 +35,21 @@
           ><span id="refresh-label">최신 공식 데이터 불러오기</span>
         </button>
       </div>
+      <details class="privacy-panel">
+        <summary>이 브라우저에 저장되는 데이터와 외부 전송</summary>
+        <ul>
+          <li>
+            이 브라우저(localStorage): 밴·픽 상태와 내 역할, 챔피언 풀·선호도·자가평가 숙련도, OP.GG 조회 희망
+            조건(서버·티어·패치), Riot 공개 카탈로그와 스킬 캐시.
+          </li>
+          <li>로컬 서버(.cache): Riot Data Dragon 공개 데이터만 저장합니다. 개인 설정은 서버에 보내지 않습니다.</li>
+          <li>
+            OP.GG: ‘이 조건으로 통계 조회’를 누를 때만 조회 양식의 값(게임 모드·챔피언·포지션·티어·언어·응답 필드)을
+            로컬 서버를 거쳐 보냅니다. 챔피언 풀·선호도·숙련도는 보내지 않습니다.
+          </li>
+        </ul>
+        <button id="clear-local-data" class="secondary" type="button">이 브라우저의 저장 데이터 모두 삭제</button>
+      </details>
       <nav class="page-nav" aria-label="주요 페이지">
         <button class="active" data-page="ontology" aria-current="page">온톨로지</button
         ><button data-page="banpick">밴픽</button><button data-page="items">아이템</button>

@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-11-08T05:23:58.525Z",
+  "source": "https://mcp-api.op.gg/mcp",
+  "tool": "lol_get_champion_analysis",
+  "arguments": {
+    "game_mode": "ranked",
+    "champion": "AHRI",
+    "position": "mid",
+    "tier": "gold",
+    "desired_output_fields": [
+      "data.trends.pick.{created_at,rank,rate,version}",
+      "data.summary.average_stats.{ban_rate,pick_rate,play,rank,tier,win_rate}"
+    ]
+  },
+  "fetchedAt": "2026-11-08T05:23:58.522Z",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "class LolGetChampionAnalysis: data\nclass Data: summary,trends\nclass Summary: average_stats\nclass AverageStats: play,win_rate,pick_rate,ban_rate,tier,rank\nclass Trends: pick\nclass Pick: version,rate,rank,created_at\n\nLolGetChampionAnalysis(Data(Summary(AverageStats(63451,0.51,0.12,0.04,1,12)),Trends(Pick(\"16.22\",0.11,2,\"2026-11-07T22:59:29+09:00\"))))"
+      }
+    ]
+  }
+}

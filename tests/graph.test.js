@@ -6,7 +6,7 @@ import {
   loadChampionAbilities,
   mergeCachedAbilities,
 } from '../src/catalog.js';
-import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood} from '../src/graph.js';
+import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood, ontologyInfo} from '../src/graph.js';
 
 test('JavaScript ontology exposes champion roles and reviewed-state traits', () => {
   const graph = createOntology(fallbackCatalog());
@@ -220,4 +220,28 @@ test('neighborhood is capped for hub nodes and reports the full total', () => {
   assert.equal(ahri.truncated, false);
   assert.equal(ahri.total, ahri.relations.length);
   assert.ok(ontologyNeighborhood(graph, 'Role', 'MID', {}, 999).relations.length <= 40);
+});
+
+test('public results carry patch, evidence, review status and limits without exposing graph internals', () => {
+  const catalog = {
+    ...fallbackCatalog(),
+    mode: 'official',
+    version: '16.22.1',
+    championVersion: '16.22.1',
+    itemVersion: '16.22.1',
+  };
+  const graph = createOntology(catalog);
+  const info = ontologyInfo(graph);
+  assert.deepEqual(info.versions, ['16.22.1']);
+  info.versions.push('mutated');
+  assert.deepEqual(ontologyInfo(graph).versions, ['16.22.1']);
+  const ahri = searchOntology(graph, 'champion', 'Ahri')[0];
+  const patch = ahri.relations.find(edge => edge.relationship === 'AVAILABLE_IN');
+  assert.equal(patch.version, '16.22.1');
+  assert.equal(patch.source, 'Riot Data Dragon');
+  const role = ahri.relations.find(edge => edge.relationship === 'PLAYS_ROLE');
+  assert.equal(role.reviewStatus, 'prototype');
+  const build = ahri.relations.find(edge => edge.relationship === 'HAS_BUILD_CANDIDATE');
+  assert.equal(build.patchValidated, false);
+  assert.equal(typeof ontologyNeighborhood(graph, 'Champion', 'Ahri').truncated, 'boolean');
 });

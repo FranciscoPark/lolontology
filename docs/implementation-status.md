@@ -5,6 +5,7 @@
 - 온톨로지 / 밴픽 / 아이템 세 페이지 내비게이션.
 - 브라우저 JavaScript의 typed `Map` graph: Champion, Item, Ability, Role, Trait, Patch 노드와 역할·특성·스킬·아이템 조합·빌드 후보 관계.
 - 챔피언/아이템 이름·ID 검색, 패치·역할·관계 유형 필터, 직접 연결 관계와 출처/검토 상태 표시, patch mismatch 차단. 아이템 카드는 조합 후보의 반대 방향 관계도 표시한다.
+- 로컬 저장 항목·OP.GG 전송 항목 안내와 이 브라우저의 저장 데이터 전체 삭제 버튼.
 - 기존 수동 밴픽, 선호도·자가평가 숙련도, 규칙 기반 픽 추천 및 아이템 초안을 세 페이지에 연결.
 - 의미 프로필이 없는 챔피언은 내 챔피언 풀에 있을 때만 `데이터 부족` 후보로 표시한다. 역할 가산점·조합 규칙 없이 개인 입력만 반영하고 역할 확인 주의 문구를 붙인다.
 - 그래프는 노드별 인접 인덱스로 관계를 조회한다. 관계 그래프는 이웃을 최대 24개까지 그리고 전체 개수를 함께 표시한다.
@@ -16,10 +17,12 @@
 
 ## 검증 상태
 
-- 2026-11-08: `npm run check`(전체 JS 문법 + Prettier), `npm test` (61 tests), `npm run build`, `npm run smoke` 통과.
+- 2026-11-08: `npm run check`(전체 JS 문법 + Prettier), `npm test` (65 tests), `npm run build`, `npm run smoke` 통과.
 - 2026-11-08: 이전 `dist/index.html`은 `build.mjs`가 `graph.js`·`opgg-build.js`를 번들하지 않아 시작 직후 `createOntology is not defined`로 중단됐다. 번들러가 import 그래프를 따르도록 고쳤고 번들 계약 테스트와 headless Chrome smoke를 추가했다.
 - 2026-11-08: 일반 터미널에서 `npm start`가 기동했고 KR realm 16.22.1 동기화(173 champions, 863 items), `/api/game-data`, `/api/champion-abilities`, `/api/opgg/tools` 응답을 확인했다. 아래 `listen EPERM` 기록은 2026-10-08 작업 환경의 제약이며 현재는 해소됐다.
 - 2026-11-08: headless Chrome으로 서버 모드 화면의 공식 데이터 표시, 새로고침 시 로컬 상태 복원, 미주석 풀 챔피언 후보 선택→아이템 페이지 이동, 패치 노드 그래프 상한, 아이템 검색을 확인했다. 콘솔 오류는 없었다.
+- 2026-11-08: `npm run qa`로 headless Chrome에서 14개 사용자 흐름을 통과했다. 역할 변경, 밴·픽 입력, 중복 방지, 추천 제외, 숙련도 반영(오리아나 41→65), 픽→아이템 이동, 새로고침 복원, 초기화, OP.GG 연결 실패 표시, 백엔드 실패 시 저장 카탈로그 유지, 저장 데이터 전체 삭제 후 reload 미복구, 온톨로지 빈 결과·미주석·패치 불일치 상태가 포함된다.
+- 2026-11-08: OP.GG 실응답 fixture를 `tests/fixtures/opgg/`에 저장했다. 응답의 `class Data:` 선언 순서가 기존 파서의 고정 순서와 달라 4·5·6번째·마지막 아이템 그룹 라벨이 어긋났고, 요약 통계를 함께 요청하면 모든 그룹이 밀렸다. 파서가 선언 이름으로 매핑하도록 고쳤다. 필터별 범위 판정은 [opgg-item-build-contract.md](opgg-item-build-contract.md)에 있다.
 - 성능 관측(16.22.1, 로컬): 그래프 1,054 노드·6,965 관계 생성 약 4ms. 아이템 전체 검색은 인접 인덱스 도입 전 약 193ms에서 약 2ms로 줄었다.
 - Data Dragon backend store tests cover independent version IDs, atomic snapshot persistence/reload, lazy ability cache, patch invalidation, and last-known-good behavior after a failed update.
 - Graph tests cover ability relationships and independent champion/item patch filtering as well as existing relation, unknown-annotation, recipe/build-candidate, role filter, and result-bound behavior.
@@ -37,4 +40,4 @@
 
 ## 다음 필수 작업
 
-사람이 직접 하는 세 페이지 클릭 QA(역할 변경, 밴/픽 입력, 개인화 수정, OP.GG 연결 실패 화면)를 기록한다. 로컬 저장 데이터 전체 삭제 UI(Plans 1.3, 2.7)를 추가한다. OP.GG 응답 범위 검증(Plans 0.1, 1.1)은 계속 남아 있다. 파이프라인 계약은 [data-pipeline-contract.md](data-pipeline-contract.md)에 기록했다.
+OP.GG 응답을 `MetaEstimate`로 정규화하고 `trends.version` 등 반환 범위 근거를 연결한다(Plans 1.1). 의미 주석 확장은 사람 검토가 필요하다(Plans 2.2). 파이프라인 계약은 [data-pipeline-contract.md](data-pipeline-contract.md)에 기록했다.
