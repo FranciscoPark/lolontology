@@ -197,3 +197,39 @@ test('official catalog tracks champion and item versions independently', () => {
   assert.equal(catalog.items['1055'].version, '16.20.2');
   assert.throws(() => normalizeCatalog('16.20.1', c, 'bad', i));
 });
+
+const withUnprofiled = () => {
+  const c = fallbackCatalog();
+  c.champions.push({id: 'Rell', name: '렐', tags: ['Tank', 'Support']});
+  return c;
+};
+test('unannotated champions are candidates only when the user put them in the pool', () => {
+  const c = withUnprofiled();
+  const s = emptyState();
+  assert(!recommendPicks(s, c).some(pick => pick.id === 'Rell'));
+  s.pool = ['Rell'];
+  const rell = recommendPicks(s, c).find(pick => pick.id === 'Rell');
+  assert.equal(rell.dataStatus, 'insufficient');
+  assert(rell.reasons.some(r => r.rule === 'role-unknown' && r.points === 0));
+  assert(!rell.reasons.some(r => r.rule === 'role'));
+  assert(rell.cautions.some(t => t.includes('직접 확인')));
+});
+test('unannotated pool champions get no composition credit, only personal evidence', () => {
+  const c = withUnprofiled();
+  const s = emptyState();
+  s.allies = ['Garen', 'LeeSin', null, 'Jinx', null];
+  s.enemies = ['Malphite', 'Sejuani', 'Ahri', null, 'Leona'];
+  s.pool = ['Rell'];
+  s.personal = {Rell: {preference: 2, mastery: 3}};
+  const rell = recommendPicks(s, c).find(pick => pick.id === 'Rell');
+  assert.deepEqual(rell.reasons.map(r => r.rule).sort(), ['mastery', 'pool', 'preference', 'role-unknown']);
+  assert.equal(rell.score, 5 + 10 + 24);
+  assert.equal(
+    recommendPicks(s, c).find(pick => pick.id === 'Ahri'),
+    undefined,
+  );
+  assert.equal(recommendPicks(s, c).find(pick => pick.id === 'Orianna').dataStatus, 'annotated');
+});
+test('default statistics tier is unspecified so tier-less OP.GG tools are usable', () => {
+  assert.equal(emptyState().filters.tier, '');
+});

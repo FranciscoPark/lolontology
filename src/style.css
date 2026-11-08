@@ -1601,3 +1601,13 @@ select {
 .external-item-grid .item-card p {
   overflow-wrap: anywhere;
 }
+.data-badge {
+  font-size: 9px;
+  color: var(--gold);
+  border: 1px solid #5b5140;
+  padding: 0 5px;
+  margin-right: 4px;
+}
+.pick-card.insufficient {
+  border-style: dashed;
+}

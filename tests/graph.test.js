@@ -190,3 +190,34 @@ test('saved champion abilities are reused offline and only discarded when the pa
     cached.abilities.Ahri,
   );
 });
+
+test('adjacency index returns the same relations as a full edge scan', () => {
+  const graph = createOntology(fallbackCatalog());
+  const {adjacency, ...withoutIndex} = graph;
+  assert.ok(adjacency instanceof Map);
+  for (const [type, query] of [
+    ['champion', ''],
+    ['item', ''],
+    ['champion', 'Ahri'],
+  ]) {
+    assert.deepEqual(searchOntology(graph, type, query), searchOntology(withoutIndex, type, query));
+  }
+  for (const role of ['', 'MID'])
+    assert.deepEqual(
+      searchOntology(graph, 'champion', '', '', 30, {role}),
+      searchOntology(withoutIndex, 'champion', '', '', 30, {role}),
+    );
+  assert.deepEqual(itemBuildCandidates(graph, 'Ahri', 'MID'), itemBuildCandidates(withoutIndex, 'Ahri', 'MID'));
+});
+
+test('neighborhood is capped for hub nodes and reports the full total', () => {
+  const graph = createOntology(fallbackCatalog());
+  const mid = ontologyNeighborhood(graph, 'Role', 'MID', {}, 5);
+  assert.equal(mid.relations.length, 5);
+  assert.ok(mid.total > 5);
+  assert.equal(mid.truncated, true);
+  const ahri = ontologyNeighborhood(graph, 'Champion', 'Ahri', {relationship: 'PLAYS_ROLE'});
+  assert.equal(ahri.truncated, false);
+  assert.equal(ahri.total, ahri.relations.length);
+  assert.ok(ontologyNeighborhood(graph, 'Role', 'MID', {}, 999).relations.length <= 40);
+});

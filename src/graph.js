@@ -2,17 +2,42 @@ import {PROFILES, ROLES, ROLE_NAMES, TRAITS} from './ontology.js';
 import {BUILD_TEMPLATES, fallbackBuildFamily} from './engine.js';
 
 const keyOf = node => `${node.type}:${node.id}`;
+const NODE_TYPES = new Set(['Champion', 'Item', 'Role', 'Trait', 'Patch', 'Ability']);
+const RELATIONSHIPS = new Set([
+  'AVAILABLE_IN',
+  'PLAYS_ROLE',
+  'HAS_TRAIT',
+  'BUILDS_FROM',
+  'HAS_BUILD_CANDIDATE',
+  'HAS_ABILITY',
+]);
+export const NEIGHBORHOOD_LIMIT = 40;
+
+function validateFilters({role = '', relationship = ''} = {}) {
+  if (role && !ROLES.includes(role)) throw new Error('Unsupported ontology role');
+  if (relationship && !RELATIONSHIPS.has(relationship)) throw new Error('Unsupported ontology relationship');
+  return {role, relationship};
+}
 
 export function createOntology(catalog) {
   const nodes = new Map();
   const edges = [];
+  // 노드 키 → 들어오고 나가는 edge 목록. 관계 조회를 전체 edge 선형 탐색 없이 처리한다.
+  const adjacency = new Map();
   const championVersion = catalog.championVersion || catalog.version,
     itemVersion = catalog.itemVersion || catalog.version;
   const addNode = node => {
     nodes.set(keyOf(node), node);
     return node;
   };
-  const addEdge = (from, type, to, evidence = {}) => edges.push({from, type, to, ...evidence});
+  const addEdge = (from, type, to, evidence = {}) => {
+    const edge = {from, type, to, ...evidence};
+    edges.push(edge);
+    for (const key of from === to ? [from] : [from, to]) {
+      if (!adjacency.has(key)) adjacency.set(key, []);
+      adjacency.get(key).push(edge);
+    }
+  };
 
   for (const role of ROLES) addNode({type: 'Role', id: role, name: ROLE_NAMES[role], source: 'application-vocabulary'});
   for (const [id, name] of Object.entries(TRAITS)) addNode({type: 'Trait', id, name, source: 'editorial-vocabulary'});
@@ -117,17 +142,23 @@ export function createOntology(catalog) {
   return {
     nodes,
     edges,
+    adjacency,
     version: championVersion || null,
     versions: [...new Set([championVersion, itemVersion].filter(Boolean))],
     source: catalog.mode === 'official' ? 'Riot Data Dragon' : 'demo catalog',
   };
 }
 
+function edgesOf(graph, key) {
+  if (graph.adjacency) return graph.adjacency.get(key) ?? [];
+  return graph.edges.filter(edge => edge.from === key || edge.to === key);
+}
+
 function edgeTargets(graph, node) {
-  return graph.edges
-    .filter(edge => edge.from === keyOf(node) || edge.to === keyOf(node))
+  const key = keyOf(node);
+  return edgesOf(graph, key)
     .map(edge => {
-      const incoming = edge.to === keyOf(node);
+      const incoming = edge.to === key;
       const target = graph.nodes.get(incoming ? edge.from : edge.to);
       return target
         ? {
@@ -147,27 +178,16 @@ function edgeTargets(graph, node) {
     .filter(Boolean);
 }
 
-export function ontologyNeighborhood(graph, type, id, filters = {}) {
-  const allowedTypes = new Set(['Champion', 'Item', 'Role', 'Trait', 'Patch', 'Ability']);
-  if (!allowedTypes.has(type) || typeof id !== 'string') return null;
+export function ontologyNeighborhood(graph, type, id, filters = {}, limit = NEIGHBORHOOD_LIMIT) {
+  if (!NODE_TYPES.has(type) || typeof id !== 'string') return null;
   const entity = graph.nodes.get(`${type}:${id}`);
   if (
     !entity ||
     (filters.patch && (!graph.versions.includes(filters.patch) || (entity.version && entity.version !== filters.patch)))
   )
     return null;
-  const {role = '', relationship = ''} = filters;
-  if (role && !ROLES.includes(role)) throw new Error('Unsupported ontology role');
-  const allowedRelationships = new Set([
-    'AVAILABLE_IN',
-    'PLAYS_ROLE',
-    'HAS_TRAIT',
-    'BUILDS_FROM',
-    'HAS_BUILD_CANDIDATE',
-    'HAS_ABILITY',
-  ]);
-  if (relationship && !allowedRelationships.has(relationship)) throw new Error('Unsupported ontology relationship');
-  const relations = edgeTargets(graph, entity)
+  const {role, relationship} = validateFilters(filters);
+  const matched = edgeTargets(graph, entity)
     .filter(
       edge =>
         !role ||
@@ -176,55 +196,51 @@ export function ontologyNeighborhood(graph, type, id, filters = {}) {
         (entity.type === 'Role' && entity.id === role),
     )
     .filter(edge => !relationship || edge.relationship === relationship);
-  return {entity, relations};
+  // 패치·역할 노드는 수백 개 이웃을 가진다. 화면과 SVG가 감당할 수 있는 수로 제한하고 전체 수를 함께 돌려준다.
+  const cap = Math.max(1, Math.min(NEIGHBORHOOD_LIMIT, limit));
+  return {entity, relations: matched.slice(0, cap), total: matched.length, truncated: matched.length > cap};
 }
 
 export function searchOntology(graph, type, query = '', patch = '', limit = 30, filters = {}) {
   if (!['champion', 'item'].includes(type)) throw new Error('Unsupported ontology type');
-  const {role = '', relationship = ''} = filters || {};
-  if (role && !ROLES.includes(role)) throw new Error('Unsupported ontology role');
-  const allowedRelationships = new Set([
-    'AVAILABLE_IN',
-    'PLAYS_ROLE',
-    'HAS_TRAIT',
-    'BUILDS_FROM',
-    'HAS_BUILD_CANDIDATE',
-    'HAS_ABILITY',
-  ]);
-  if (relationship && !allowedRelationships.has(relationship)) throw new Error('Unsupported ontology relationship');
+  const {role, relationship} = validateFilters(filters || {});
   if (patch && !graph.versions.includes(patch)) return [];
   const nodeType = type === 'champion' ? 'Champion' : 'Item';
   const needle = query.trim().toLocaleLowerCase();
-  return [...graph.nodes.values()]
-    .filter(
-      node =>
-        node.type === nodeType &&
-        (!patch || node.version === patch) &&
-        (!needle ||
-          `${node.id} ${node.name || ''} ${node.title || ''} ${node.plaintext || ''}`
-            .toLocaleLowerCase()
-            .includes(needle)),
-    )
-    .map(entity => ({entity, relations: edgeTargets(graph, entity)}))
-    .filter(
-      ({relations}) =>
-        (!role ||
-          relations.some(edge => (edge.targetType === 'Role' && edge.targetId === role) || edge.role === role)) &&
-        (!relationship || relations.some(edge => edge.relationship === relationship)),
-    )
-    .sort((a, b) => String(a.entity.name || a.entity.id).localeCompare(String(b.entity.name || b.entity.id), 'ko'))
-    .slice(0, Math.max(1, Math.min(40, limit)))
-    .map(result => ({
-      ...result,
-      relations: relationship ? result.relations.filter(edge => edge.relationship === relationship) : result.relations,
-    }));
+  const cap = Math.max(1, Math.min(40, limit));
+  const byName = (a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), 'ko');
+  const candidates = [...graph.nodes.values()].filter(
+    node =>
+      node.type === nodeType &&
+      (!patch || node.version === patch) &&
+      (!needle ||
+        `${node.id} ${node.name || ''} ${node.title || ''} ${node.plaintext || ''}`
+          .toLocaleLowerCase()
+          .includes(needle)),
+  );
+  const matchesFilters = relations =>
+    (!role || relations.some(edge => (edge.targetType === 'Role' && edge.targetId === role) || edge.role === role)) &&
+    (!relationship || relations.some(edge => edge.relationship === relationship));
+  // 관계 필터가 없으면 정렬·절단 뒤 결과 수만큼만 관계를 계산한다.
+  const ordered = candidates.sort(byName);
+  const results = [];
+  for (const entity of role || relationship ? ordered : ordered.slice(0, cap)) {
+    const relations = edgeTargets(graph, entity);
+    if (!matchesFilters(relations)) continue;
+    results.push({
+      entity,
+      relations: relationship ? relations.filter(edge => edge.relationship === relationship) : relations,
+    });
+    if (results.length === cap) break;
+  }
+  return results;
 }
 
 export function itemBuildCandidates(graph, championId, role) {
   const node = graph.nodes.get(`Champion:${championId}`);
   if (!node || !ROLES.includes(role)) return [];
   const order = {start: 0, boots: 1, 'core-1': 2, 'core-2': 3, 'core-3': 4, 'core-4': 5, 'core-5': 6, 'core-6': 7};
-  return graph.edges
+  return edgesOf(graph, keyOf(node))
     .filter(edge => edge.from === keyOf(node) && edge.type === 'HAS_BUILD_CANDIDATE' && edge.role === role)
     .map(edge => ({...edge, item: graph.nodes.get(edge.to)}))
     .filter(edge => edge.item)

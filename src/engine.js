@@ -8,7 +8,7 @@ export function emptyState() {
     pool: [],
     poolOnly: false,
     personal: {},
-    filters: {region: 'kr', tier: 'gold', patch: ''},
+    filters: {region: 'kr', tier: '', patch: ''},
   };
 }
 export function normalizeState(raw, catalog) {
@@ -92,15 +92,19 @@ export function recommendPicks(state, catalog) {
     enemy = composition(state.enemies);
   const unavailable = new Set([...other, ...state.enemies, ...state.bans]);
   return catalog.champions
-    .filter(
-      c =>
-        PROFILES[c.id]?.roles.includes(state.role) &&
-        !unavailable.has(c.id) &&
-        (!state.poolOnly || state.pool.includes(c.id)),
-    )
+    .filter(c => {
+      if (unavailable.has(c.id) || (state.poolOnly && !state.pool.includes(c.id))) return false;
+      // 의미 주석이 있으면 역할 프로필로, 없으면 사용자가 직접 챔피언 풀에 넣은 경우에만 후보로 둔다.
+      return PROFILES[c.id] ? PROFILES[c.id].roles.includes(state.role) : state.pool.includes(c.id);
+    })
     .map(c => {
       const p = PROFILES[c.id],
-        reasons = [{rule: 'role', text: `${ROLE_NAMES[state.role]} 역할 프로필이 있는 후보`, points: 30}],
+        annotated = Boolean(p),
+        reasons = [
+          annotated
+            ? {rule: 'role', text: `${ROLE_NAMES[state.role]} 역할 프로필이 있는 후보`, points: 30}
+            : {rule: 'role-unknown', text: '역할 주석 없음 · 내 챔피언 풀 기준 후보 (역할 가산점 없음)', points: 0},
+        ],
         cautions = [];
       const add = (rule, text, points) => reasons.push({rule, text, points});
       if (state.pool.includes(c.id)) add('pool', '내 챔피언 풀에 포함', 5);
@@ -119,22 +123,33 @@ export function recommendPicks(state, catalog) {
         ['peel', '아군 보호', 7],
         ['waveclear', '웨이브 정리', 6],
       ])
-        if (ally.total > 0 && !ally.traits[t] && p.traits.includes(t))
+        if (annotated && ally.total > 0 && !ally.traits[t] && p.traits.includes(t))
           add(t, `현재 입력한 아군의 ${label} 보완`, points);
-      if (ally.known >= 2 && ally.damage.physical >= 2 && ally.damage.magic < 1 && p.damage === 'magic')
+      if (ally.known >= 2 && ally.damage.physical >= 2 && ally.damage.magic < 1 && p?.damage === 'magic')
         add('damage-magic', '물리 피해 위주 아군에 마법 피해 성향 보완', 12);
-      if (ally.known >= 2 && ally.damage.magic >= 2 && ally.damage.physical < 1 && p.damage === 'physical')
+      if (ally.known >= 2 && ally.damage.magic >= 2 && ally.damage.physical < 1 && p?.damage === 'physical')
         add('damage-physical', '마법 피해 위주 아군에 물리 피해 성향 보완', 12);
-      if (enemy.traits.engage >= 2 && p.traits.includes('peel'))
+      if (enemy.traits.engage >= 2 && p?.traits.includes('peel'))
         add('anti-engage', '상대 진입에 대응할 아군 보호 수단', 9);
-      if (enemy.traits.frontline >= 2 && ['marksman', 'onhit', 'apfighter'].includes(p.build))
+      if (enemy.traits.frontline >= 2 && ['marksman', 'onhit', 'apfighter'].includes(p?.build))
         add('sustained', '상대 전방을 상대할 지속 피해 후보', 8);
+      if (!annotated)
+        cautions.push(
+          '의미 주석이 없어 역할·조합 적합도를 평가하지 않았습니다. 이 역할에서 플레이하는 챔피언인지 직접 확인하세요.',
+        );
       if (ally.total < 4) cautions.push('미입력 아군에 따라 순위가 바뀔 수 있습니다');
       if (enemy.total < 5) cautions.push('상대 조합이 아직 완성되지 않았습니다');
       if (ally.unknown + enemy.unknown) cautions.push('의미 주석이 없는 챔피언은 조합 평가에서 제외됩니다');
       if (personal?.mastery === null || personal?.mastery === undefined)
         cautions.push('숙련도 미입력: 챔피언 풀 포함 여부를 숙련도로 간주하지 않습니다');
-      return {...c, score: reasons.reduce((s, r) => s + r.points, 0), reasons, cautions, ruleVersion: RULE_VERSION};
+      return {
+        ...c,
+        score: reasons.reduce((s, r) => s + r.points, 0),
+        dataStatus: annotated ? 'annotated' : 'insufficient',
+        reasons,
+        cautions,
+        ruleVersion: RULE_VERSION,
+      };
     })
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 }

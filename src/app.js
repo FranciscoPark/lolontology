@@ -24,6 +24,7 @@ import {
 import {emptyState, normalizeState, assign, composition, recommendPicks, buildDraft} from './engine.js';
 import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood} from './graph.js';
 import {parseOpggItemBuild} from './opgg-build.js';
+const GRAPH_NODE_LIMIT = 24;
 const $ = s => document.querySelector(s),
   esc = v =>
     String(v ?? '').replace(
@@ -109,7 +110,8 @@ async function renderOntologyGraph(type, id, filters = {}) {
     }
   }
   if (sequence !== graphRenderSeq) return;
-  const data = ontologyNeighborhood(ontology, type, id, filters);
+  // 타원 배치에서 노드가 겹치지 않는 최대 수. 나머지는 개수만 안내한다.
+  const data = ontologyNeighborhood(ontology, type, id, filters, GRAPH_NODE_LIMIT);
   if (!data) {
     host.innerHTML = '<p class="muted">표시할 그래프가 없습니다. 패치와 필터를 확인하세요.</p>';
     return;
@@ -158,7 +160,7 @@ async function renderOntologyGraph(type, id, filters = {}) {
       entity.type === 'Ability'
         ? `<article class="ability-detail">${image ? `<img src="${esc(image)}" alt="${esc(entity.name)} 아이콘" loading="lazy">` : ''}<div><span>${esc(entity.championName || '')} · ${esc(entity.slot || '')} · Data Dragon ${esc(entity.version || 'patch unknown')}</span><h4>${esc(entity.name || entity.id)}</h4><p>${esc(entity.description || '설명 없음')}</p></div></article>`
         : '';
-  host.innerHTML = `${warning ? `<p class="graph-warning">${esc(warning)}</p>` : ''}<div class="ontology-svg-scroll"><svg class="ontology-svg" viewBox="0 0 960 550" role="img" aria-label="${esc(entity.name || entity.id)} 관계 그래프"><defs><marker id="graph-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#648278"/></marker></defs>${lines}${nodes}${node(center.x, center.y, 42, entity.type, entity.id, entity.name || entity.id, entity.type === 'Ability' ? `스킬 · ${entity.slot}` : typeName(entity.type), true)}</svg></div><p class="graph-caption">선의 방향은 관계의 방향입니다. 직접 연결 ${n}개 · 노드를 선택하면 해당 항목 중심으로 이동합니다.</p>${details}`;
+  host.innerHTML = `${warning ? `<p class="graph-warning">${esc(warning)}</p>` : ''}<div class="ontology-svg-scroll"><svg class="ontology-svg" viewBox="0 0 960 550" role="img" aria-label="${esc(entity.name || entity.id)} 관계 그래프"><defs><marker id="graph-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#648278"/></marker></defs>${lines}${nodes}${node(center.x, center.y, 42, entity.type, entity.id, entity.name || entity.id, entity.type === 'Ability' ? `스킬 · ${entity.slot}` : typeName(entity.type), true)}</svg></div><p class="graph-caption">선의 방향은 관계의 방향입니다. ${data.truncated ? `직접 연결 ${data.total}개 중 ${n}개 표시 · 관계·역할 필터로 좁혀 보세요` : `직접 연결 ${n}개`} · 노드를 선택하면 해당 항목 중심으로 이동합니다.</p>${details}`;
 }
 function renderOntology() {
   const type = $('#ontology-type').value,
@@ -244,23 +246,25 @@ function render() {
         .slice(0, 3)
         .map(
           (c, i) =>
-            `<article class="pick-card ${i === 0 ? 'top' : ''}"><div class="pick-heading"><span class="rank">0${i + 1}</span>${avatar(c.id)}<div class="pick-name"><h3>${esc(c.name)}</h3><small>${
-              PROFILES[c.id].traits
-                .map(t => TRAITS[t])
-                .slice(0, 3)
-                .join(' · ') || '피해 중심 후보'
+            `<article class="pick-card ${i === 0 ? 'top' : ''} ${c.dataStatus === 'insufficient' ? 'insufficient' : ''}"><div class="pick-heading"><span class="rank">0${i + 1}</span>${avatar(c.id)}<div class="pick-name"><h3>${esc(c.name)}</h3><small>${
+              c.dataStatus === 'insufficient'
+                ? '<span class="data-badge">데이터 부족</span> 역할·조합 주석 없음'
+                : PROFILES[c.id].traits
+                    .map(t => TRAITS[t])
+                    .slice(0, 3)
+                    .join(' · ') || '피해 중심 후보'
             }</small></div><span class="score">${c.score}<small>적합 점수</small></span></div><ul>${
               c.reasons
                 .filter(r => r.rule !== 'role')
                 .slice(0, 3)
                 .map(r => `<li>${esc(r.text)}</li>`)
                 .join('') || '<li>조합을 더 입력하면 후보를 구체적으로 비교합니다.</li>'
-            }</ul><div class="pick-bottom"><details><summary>근거와 한계</summary><p>편집 주석 · 규칙 ${esc(c.ruleVersion)}</p>${c.reasons.map(r => `<p>${esc(r.text)} <b>${r.points >= 0 ? '+' : ''}${r.points}</b></p>`).join('')}${c.cautions.map(t => `<p class="muted">${esc(t)}</p>`).join('')}</details><button class="select-pick" data-pick="${c.id}">${state.allies[ROLES.indexOf(state.role)] === c.id ? '선택됨 ✓' : '이 픽 선택 →'}</button></div></article>`,
+            }</ul><div class="pick-bottom"><details><summary>근거와 한계</summary><p>${c.dataStatus === 'insufficient' ? '의미 주석 없음 · 개인 입력만 반영' : '편집 주석'} · 규칙 ${esc(c.ruleVersion)}</p>${c.reasons.map(r => `<p>${esc(r.text)} <b>${r.points >= 0 ? '+' : ''}${r.points}</b></p>`).join('')}${c.cautions.map(t => `<p class="muted">${esc(t)}</p>`).join('')}</details><button class="select-pick" data-pick="${esc(c.id)}">${state.allies[ROLES.indexOf(state.role)] === c.id ? '선택됨 ✓' : '이 픽 선택 →'}</button></div></article>`,
         )
         .join('')
     : '<div class="empty-state"><strong>조건에 맞는 후보가 없습니다.</strong><p>챔피언 풀을 추가하거나 풀 제한을 해제하세요.<br>픽·밴된 챔피언은 후보에서 제외됩니다.</p></div>';
   $('#coverage').textContent =
-    `의미 프로필 ${Object.keys(PROFILES).filter(id => catalog.champions.some(c => c.id === id)).length}명 지원 · 수동 주석 기반, 패치별 전략 검증 전`;
+    `의미 프로필 ${Object.keys(PROFILES).filter(id => catalog.champions.some(c => c.id === id)).length}/${catalog.champions.length}명 지원 · 프로필이 없는 챔피언은 내 챔피언 풀에 넣으면 '데이터 부족' 후보로 표시 · 패치별 전략 검증 전`;
   renderBuild();
   renderData();
 }
