@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {buildDraft, emptyState, BUILD_TEMPLATES, SITUATIONAL_ITEMS} from '../src/engine.js';
+import {buildDraft, emptyState} from '../src/engine.js';
+import {BUILD_TEMPLATES, SITUATIONAL_ITEMS} from '../src/templates.js';
 import {parseOpggItemBuild} from '../src/opgg-build.js';
 import {resultText} from '../src/opgg-ui.js';
 import {compareBuilds, renderBuildComparison} from '../src/build-compare.js';

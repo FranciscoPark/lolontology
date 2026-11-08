@@ -65,3 +65,49 @@ export const PROFILES = Object.fromEntries(
   ]),
 );
 export const SOURCE = 'https://developer.riotgames.com/docs/lol#data-dragon';
+
+// 효과 어휘와 대응 관계. 상황별 대안 아이템은 이 관계를 그래프에서 따라가 고른다.
+// 편집 규칙이며 패치별 수치 검증 결과가 아니다.
+export const EFFECT_RULE_SOURCE = 'editorial-effect-rules-v0';
+export const EFFECTS = {
+  healing: '회복',
+  'healing-reduction': '회복 감소',
+  'magic-damage': '마법 피해',
+  'magic-resist': '마법 저항력',
+  durability: '전방 내구도',
+  'magic-penetration': '마법 관통',
+  'armor-penetration': '방어구 관통',
+};
+// 상대 챔피언 프로필에서 위협 효과를 만드는 규칙. weight 합이 minWeight 이상일 때 대응을 검토한다.
+// 마법 피해는 혼합 피해 챔피언을 0.5로 센다(기존 composition 규칙과 같음).
+export const THREAT_RULES = [
+  {effect: 'healing', trait: 'sustain', minWeight: 1},
+  {effect: 'magic-damage', damage: {magic: 1, mixed: 0.5}, minWeight: 2},
+  {effect: 'durability', trait: 'frontline', minWeight: 2},
+];
+export const MITIGATIONS = [
+  ['healing-reduction', 'healing'],
+  ['magic-resist', 'magic-damage'],
+  ['magic-penetration', 'durability'],
+  ['armor-penetration', 'durability'],
+];
+const AP = ['mage', 'apfighter', 'apassassin'];
+// 아이템이 제공하는 대응 효과와 그 아이템이 맞는 빌드 유형.
+export const ITEM_EFFECTS = [
+  {item: '3165', effect: 'healing-reduction', families: AP, note: '효과 적용과 팀 내 중복을 확인하세요.'},
+  {
+    item: '3033',
+    effect: 'healing-reduction',
+    families: ['marksman', 'onhit', 'spellmarksman', 'critfighter'],
+    note: '기본 경로와 교체 비교하세요.',
+  },
+  {item: '3102', effect: 'magic-resist', families: AP},
+  {item: '3156', effect: 'magic-resist', families: ['fighter', 'assassin', 'marksman', 'onhit', 'spellmarksman']},
+  {item: '3135', effect: 'magic-penetration', families: AP, note: '상대가 마법 저항력을 쌓을 경우 검토하세요.'},
+  {
+    item: '3036',
+    effect: 'armor-penetration',
+    families: ['marksman', 'onhit'],
+    note: '상대가 방어력을 쌓을 경우 검토하세요.',
+  },
+];

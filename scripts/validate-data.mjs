@@ -6,7 +6,7 @@
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {BUILD_TEMPLATES, SITUATIONAL_ITEMS, isPurchasable} from '../src/engine.js';
+import {BUILD_TEMPLATES, SITUATIONAL_ITEMS, isPurchasable} from '../src/templates.js';
 import {PROFILES} from '../src/ontology.js';
 import {fallbackCatalog} from '../src/catalog.js';
 

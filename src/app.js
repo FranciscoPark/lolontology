@@ -92,6 +92,8 @@ const relationLabel = {
   BUILDS_FROM: '조합 재료',
   HAS_BUILD_CANDIDATE: '빌드 후보',
   HAS_ABILITY: '보유 스킬',
+  APPLIES_EFFECT: '효과',
+  MITIGATES: '상쇄',
 };
 async function renderOntologyGraph(type, id, filters = {}) {
   const host = $('#ontology-graph'),
@@ -141,6 +143,7 @@ async function renderOntologyGraph(type, id, filters = {}) {
     Trait: '#c69ce2',
     Patch: '#a6b2b4',
     Ability: '#eb9ac1',
+    Effect: '#e88f7a',
   };
   const node = (x, y, r, t, id, nameText, sub, root = false) =>
     `<g class="graph-node ${root ? 'graph-node-root' : ''}" ${root ? '' : 'tabindex="0" role="button"'} ${root ? '' : 'data-graph-node="true" data-graph-type="' + esc(t) + '" data-graph-id="' + esc(id) + '"'}><circle cx="${x}" cy="${y}" r="${r}" fill="#17262a" stroke="${colors[t] || '#9db4ae'}"/><text class="graph-node-type" x="${x}" y="${y - 4}">${esc(sub)}</text><text class="graph-node-name" x="${x}" y="${y + 14}">${esc(nameText.length > 18 ? nameText.slice(0, 17) + '…' : nameText)}</text></g>`;
@@ -151,7 +154,9 @@ async function renderOntologyGraph(type, id, filters = {}) {
     )
     .join('');
   const typeName = t =>
-    ({Champion: '챔피언', Item: '아이템', Role: '역할', Trait: '특성', Patch: '패치', Ability: '스킬'})[t] || t;
+    ({Champion: '챔피언', Item: '아이템', Role: '역할', Trait: '특성', Patch: '패치', Ability: '스킬', Effect: '효과'})[
+      t
+    ] || t;
   const nodes = points
     .map(p => {
       const label = p.targetName || p.targetId,
@@ -288,7 +293,7 @@ function itemCard(item, label) {
   return `<article class="item-card"><span class="item-step">${label}</span><div class="item-main">${image ? `<img class="item-icon" src="${esc(image)}" alt="${esc(item.name)} 아이템 이미지" loading="lazy">` : '<span class="item-icon placeholder" aria-label="아이템 이미지 없음">◇</span>'}<div><h4>${esc(item.name)}</h4><small>${price}</small></div></div><p>${esc(item.reason)}</p></article>`;
 }
 function renderBuild() {
-  const b = buildDraft(state, catalog);
+  const b = buildDraft(state, catalog, ontology);
   $('#build-title').textContent =
     b.status === 'ready' ? `${name(b.championId)} · 아이템 초안` : '픽에서 시작하는 아이템 초안';
   if (b.status !== 'ready') {
@@ -333,7 +338,12 @@ function renderExternalBuild() {
     host.innerHTML = `<p class="opgg-warning">저장된 통계는 ${esc(name(externalItemBuild.championId))} · ${esc(externalItemBuild.role || '역할 미확인')} 조회입니다. 현재 선택(${esc(champion ? name(champion) : '챔피언 없음')} · ${esc(state.role)})과 달라 표시하지 않았습니다.</p>`;
     return;
   }
-  host.innerHTML = `<div class="external-build-heading"><div><span class="eyebrow">STATISTICAL BUILD · ${esc(externalItemBuild.source)}</span><h3>OP.GG 통계 기반 아이템</h3></div><small>${esc(externalItemBuild.itemVersion)} 아이템 검증 · ${esc(new Date(externalItemBuild.fetchedAt).toLocaleString('ko-KR'))}</small></div><p class="opgg-warning">${esc(externalItemBuild.scopeWarning)} ${externalItemBuild.tier ? `조회 티어: ${esc(externalItemBuild.tier)}.` : '티어 범위는 제공 데이터 기본값입니다.'} 지역·패치 통계 범위는 응답에서 확인되지 않았습니다.</p>${externalItemBuild.groups.map(group => `<section class="item-row"><div class="item-row-heading"><h3>${esc(group.label)}</h3><small>응답된 조합·픽률 기준 후보</small></div><div class="item-grid external-item-grid">${group.choices.map((choice, index) => choice.items.map((item, itemIndex) => itemCard({...item, reason: `OP.GG 통계 그룹 ${index + 1} · ${choice.pickRate.toLocaleString('ko-KR', {style: 'percent', maximumFractionDigits: 1})} 선택 비율 · ${choice.play.toLocaleString()}게임 (${choice.win.toLocaleString()}승)${choice.items.length > 1 ? ` · 조합 ${itemIndex + 1}/${choice.items.length}` : ''}`}, group.choices.length > 1 ? `통계 후보 ${index + 1}` : group.label)).join('')).join('')}</div></section>`).join('')}${externalItemBuild.omitted.length ? `<p class="coverage">현재 패치에서 구매 검증을 통과하지 않아 제외한 아이템 ID: ${esc(externalItemBuild.omitted.join(', '))}</p>` : ''}${renderBuildComparison(compareBuilds(buildDraft(state, catalog), externalItemBuild), {templateLabel: buildDraft(state, catalog).label})}`;
+  host.innerHTML = `<div class="external-build-heading"><div><span class="eyebrow">STATISTICAL BUILD · ${esc(externalItemBuild.source)}</span><h3>OP.GG 통계 기반 아이템</h3></div><small>${esc(externalItemBuild.itemVersion)} 아이템 검증 · ${esc(new Date(externalItemBuild.fetchedAt).toLocaleString('ko-KR'))}</small></div><p class="opgg-warning">${esc(externalItemBuild.scopeWarning)} ${externalItemBuild.tier ? `조회 티어: ${esc(externalItemBuild.tier)}.` : '티어 범위는 제공 데이터 기본값입니다.'} 지역·패치 통계 범위는 응답에서 확인되지 않았습니다.</p>${externalItemBuild.groups.map(group => `<section class="item-row"><div class="item-row-heading"><h3>${esc(group.label)}</h3><small>응답된 조합·픽률 기준 후보</small></div><div class="item-grid external-item-grid">${group.choices.map((choice, index) => choice.items.map((item, itemIndex) => itemCard({...item, reason: `OP.GG 통계 그룹 ${index + 1} · ${choice.pickRate.toLocaleString('ko-KR', {style: 'percent', maximumFractionDigits: 1})} 선택 비율 · ${choice.play.toLocaleString()}게임 (${choice.win.toLocaleString()}승)${choice.items.length > 1 ? ` · 조합 ${itemIndex + 1}/${choice.items.length}` : ''}`}, group.choices.length > 1 ? `통계 후보 ${index + 1}` : group.label)).join('')).join('')}</div></section>`).join('')}${externalItemBuild.omitted.length ? `<p class="coverage">현재 패치에서 구매 검증을 통과하지 않아 제외한 아이템 ID: ${esc(externalItemBuild.omitted.join(', '))}</p>` : ''}${renderBuildComparison(
+    compareBuilds(buildDraft(state, catalog, ontology), externalItemBuild),
+    {
+      templateLabel: buildDraft(state, catalog, ontology).label,
+    },
+  )}`;
 }
 function renderGraphBuild() {
   const targetEl = $('#graph-build'),

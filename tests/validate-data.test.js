@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {validateEditorialData} from '../scripts/validate-data.mjs';
-import {BUILD_TEMPLATES, SITUATIONAL_ITEMS} from '../src/engine.js';
+import {BUILD_TEMPLATES, SITUATIONAL_ITEMS} from '../src/templates.js';
 import {PROFILES} from '../src/ontology.js';
 
 const allIds = () => [
@@ -13,8 +13,10 @@ const catalogWith = ids => ({
   items: Object.fromEntries(ids.map(id => [id, {id, name: `item ${id}`, maps: {11: true}, gold: {purchasable: true}}])),
 });
 
-test('every item id literal in engine.js is covered by templates or SITUATIONAL_ITEMS', () => {
-  const source = readFileSync(new URL('../src/engine.js', import.meta.url), 'utf8');
+test('every item id literal in engine and templates is covered by templates or SITUATIONAL_ITEMS', () => {
+  const source = ['../src/engine.js', '../src/templates.js', '../src/ontology.js']
+    .map(file => readFileSync(new URL(file, import.meta.url), 'utf8'))
+    .join('\n');
   const literals = [...source.matchAll(/'(\d{4})'/g)].map(match => match[1]);
   const covered = new Set(allIds());
   assert.deepEqual(

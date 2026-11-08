@@ -1,8 +1,18 @@
-import {PROFILES, ROLES, ROLE_NAMES, TRAITS} from './ontology.js';
-import {BUILD_TEMPLATES, fallbackBuildFamily} from './engine.js';
+import {
+  PROFILES,
+  ROLES,
+  ROLE_NAMES,
+  TRAITS,
+  EFFECTS,
+  EFFECT_RULE_SOURCE,
+  THREAT_RULES,
+  MITIGATIONS,
+  ITEM_EFFECTS,
+} from './ontology.js';
+import {BUILD_TEMPLATES, buildFamily} from './templates.js';
 
 const keyOf = node => `${node.type}:${node.id}`;
-const NODE_TYPES = new Set(['Champion', 'Item', 'Role', 'Trait', 'Patch', 'Ability']);
+const NODE_TYPES = new Set(['Champion', 'Item', 'Role', 'Trait', 'Patch', 'Ability', 'Effect']);
 const RELATIONSHIPS = new Set([
   'AVAILABLE_IN',
   'PLAYS_ROLE',
@@ -10,6 +20,8 @@ const RELATIONSHIPS = new Set([
   'BUILDS_FROM',
   'HAS_BUILD_CANDIDATE',
   'HAS_ABILITY',
+  'APPLIES_EFFECT',
+  'MITIGATES',
 ]);
 export const NEIGHBORHOOD_LIMIT = 40;
 
@@ -41,6 +53,9 @@ export function createOntology(catalog) {
 
   for (const role of ROLES) addNode({type: 'Role', id: role, name: ROLE_NAMES[role], source: 'application-vocabulary'});
   for (const [id, name] of Object.entries(TRAITS)) addNode({type: 'Trait', id, name, source: 'editorial-vocabulary'});
+  for (const [id, name] of Object.entries(EFFECTS)) addNode({type: 'Effect', id, name, source: EFFECT_RULE_SOURCE});
+  for (const [from, to] of MITIGATIONS)
+    addEdge(`Effect:${from}`, 'MITIGATES', `Effect:${to}`, {source: EFFECT_RULE_SOURCE, reviewStatus: 'prototype'});
   if (championVersion)
     addNode({
       type: 'Patch',
@@ -97,12 +112,20 @@ export function createOntology(catalog) {
       addEdge(keyOf(node), 'PLAYS_ROLE', `Role:${role}`, {source: profile.source, reviewStatus: profile.reviewStatus});
     for (const trait of profile?.traits || [])
       addEdge(keyOf(node), 'HAS_TRAIT', `Trait:${trait}`, {source: profile.source, reviewStatus: profile.reviewStatus});
+    // 편집 프로필의 특성·피해 성향에서 상대에게 주는 효과를 만든다. 프로필이 없으면 효과를 추정하지 않는다.
+    for (const rule of profile ? THREAT_RULES : []) {
+      const weight = rule.trait ? (profile.traits.includes(rule.trait) ? 1 : 0) : rule.damage?.[profile.damage] || 0;
+      if (weight)
+        addEdge(keyOf(node), 'APPLIES_EFFECT', `Effect:${rule.effect}`, {
+          source: profile.source,
+          reviewStatus: profile.reviewStatus,
+          weight,
+          basis: rule.trait ? `trait:${rule.trait}` : `damage:${profile.damage}`,
+        });
+    }
 
     for (const role of profile?.roles?.length ? profile.roles : ROLES) {
-      const family =
-        role === 'SUPPORT' && profile?.build === 'tank'
-          ? 'supporttank'
-          : profile?.build || fallbackBuildFamily(champion, role);
+      const family = buildFamily(profile, champion, role);
       const template = BUILD_TEMPLATES[family];
       if (!template) continue;
       const candidates = [
@@ -138,6 +161,15 @@ export function createOntology(catalog) {
         addEdge(keyOf(node), 'BUILDS_FROM', `Item:${componentId}`, {source: 'Riot Data Dragon', version: itemVersion});
     }
   }
+  for (const annotation of ITEM_EFFECTS)
+    if (catalog.items[annotation.item])
+      addEdge(`Item:${annotation.item}`, 'APPLIES_EFFECT', `Effect:${annotation.effect}`, {
+        source: 'editorial-item-effects-v0',
+        reviewStatus: 'prototype',
+        families: annotation.families,
+        note: annotation.note || '',
+        patchValidated: false,
+      });
 
   return {
     nodes,
@@ -251,4 +283,42 @@ export function itemBuildCandidates(graph, championId, role) {
     .map(edge => ({...edge, item: graph.nodes.get(edge.to)}))
     .filter(edge => edge.item)
     .sort((a, b) => (order[a.slot] ?? 99) - (order[b.slot] ?? 99));
+}
+
+// 상대 챔피언 → APPLIES_EFFECT → 위협 효과 ← MITIGATES ← 대응 효과 ← APPLIES_EFFECT ← 아이템
+// 경로를 따라 빌드 유형에 맞는 대응 아이템을 찾는다. 위협은 THREAT_RULES 순서, 대응은 MITIGATIONS 순서를 따른다.
+export function counterItemCandidates(graph, enemyIds, family) {
+  const candidates = [],
+    uncovered = [];
+  const enemies = [...new Set(enemyIds.filter(Boolean))];
+  for (const rule of THREAT_RULES) {
+    const threatKey = `Effect:${rule.effect}`;
+    const contributors = enemies.flatMap(id =>
+      edgesOf(graph, `Champion:${id}`)
+        .filter(edge => edge.type === 'APPLIES_EFFECT' && edge.from === `Champion:${id}` && edge.to === threatKey)
+        .map(edge => ({championId: id, name: graph.nodes.get(edge.from)?.name || id, weight: edge.weight || 1})),
+    );
+    const weight = contributors.reduce((sum, contributor) => sum + contributor.weight, 0);
+    if (weight < rule.minWeight) continue;
+    const mitigations = edgesOf(graph, threatKey).filter(edge => edge.type === 'MITIGATES' && edge.to === threatKey);
+    const found = [];
+    for (const mitigation of mitigations)
+      for (const edge of edgesOf(graph, mitigation.from))
+        if (edge.type === 'APPLIES_EFFECT' && edge.to === mitigation.from && edge.from.startsWith('Item:'))
+          if (edge.families?.includes(family))
+            found.push({
+              itemId: edge.from.slice('Item:'.length),
+              threat: rule.effect,
+              mitigation: mitigation.from.slice('Effect:'.length),
+              contributors,
+              weight,
+              note: edge.note,
+              path: [...contributors.map(c => `Champion:${c.championId}`), threatKey, mitigation.from, edge.from],
+              source: edge.source,
+              reviewStatus: edge.reviewStatus,
+            });
+    if (found.length) candidates.push(...found);
+    else uncovered.push({threat: rule.effect, contributors, weight});
+  }
+  return {candidates, uncovered};
 }

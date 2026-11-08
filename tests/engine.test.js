@@ -1,14 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  emptyState,
-  normalizeState,
-  assign,
-  recommendPicks,
-  buildDraft,
-  composition,
-  isPurchasable,
-} from '../src/engine.js';
+import {emptyState, normalizeState, assign, recommendPicks, buildDraft, composition} from '../src/engine.js';
+import {isPurchasable} from '../src/templates.js';
 import {fallbackCatalog, normalizeCatalog} from '../src/catalog.js';
 import {ROLES} from '../src/ontology.js';
 const catalog = fallbackCatalog();
@@ -259,4 +252,20 @@ test('saved play roles are normalized to known roles', () => {
   const state = normalizeState({personal: {Ahri: {preference: 1, roles: ['MID', 'BOGUS', 'TOP', 'MID']}}}, catalog);
   assert.deepEqual(state.personal.Ahri.roles, ['TOP', 'MID']);
   assert.deepEqual(normalizeState({personal: {Ahri: {preference: 1}}}, catalog).personal.Ahri.roles, []);
+});
+
+test('situational alternatives carry the ontology path used as their rationale', () => {
+  const s = emptyState();
+  s.role = 'MID';
+  s.allies[2] = 'Orianna';
+  s.enemies = ['Aatrox', null, null, null, 'Soraka'];
+  const alternative = buildDraft(s, catalog).alternatives.find(item => item.id === '3165');
+  assert.deepEqual(alternative.path, [
+    'Champion:Aatrox',
+    'Champion:Soraka',
+    'Effect:healing',
+    'Effect:healing-reduction',
+    'Item:3165',
+  ]);
+  assert.match(alternative.reason, /아트록스·소라카의 회복 → 회복 감소 대응 경로/);
 });

@@ -44,7 +44,7 @@ Navigation, patch/data status, and profile preferences are shared across pages. 
 ## Data And Contracts
 
 - 정적 게임 데이터: Data Dragon의 지역 realm과 같은 패치에서 읽은 champion/item 데이터.
-- 온톨로지: JavaScript `Map` 기반 `Champion`, `Role`, `Trait`, `Item`, `Patch` 노드와 `PLAYS_ROLE`, `HAS_TRAIT`, `BUILDS_FROM`, `HAS_BUILD_CANDIDATE`, `AVAILABLE_IN` 관계. Graph identity is stable within an entity type; patch-specific facts and estimates retain their own version/scope.
+- 온톨로지: JavaScript `Map` 기반 `Champion`, `Role`, `Trait`, `Item`, `Patch`, `Ability`, `Effect` 노드와 `PLAYS_ROLE`, `HAS_TRAIT`, `BUILDS_FROM`, `HAS_BUILD_CANDIDATE`, `AVAILABLE_IN`, `HAS_ABILITY`, `APPLIES_EFFECT`, `MITIGATES` 관계. 상황별 대안 아이템은 상대 챔피언 → 효과 → 대응 효과 → 아이템 경로 탐색으로 고른다. Graph identity is stable within an entity type; patch-specific facts and estimates retain their own version/scope.
 - Graph access: typed pure functions for ontology search/neighborhood and role-specific item candidates. Bound result count and relationship depth; validate entity type, IDs, and patch against the loaded catalog.
 - OP.GG 외부 응답: 허용된 MCP 읽기 도구만 호출한다. 내부 통계 객체에 source, fetchedAt, requestedScope, returnedScope, statisticDefinition, sampleSize, providerVersion을 보존한다. 실제 응답에 없는 값은 추측해 채우지 않는다.
 - 사용자 로컬 설정: 밴픽 상태, 역할, 선택 챔피언 풀, 선호도, 자가평가 숙련도 및 조회 조건. 저장 항목과 OP.GG로 보내는 조회 필드를 화면에 알리고 사용자가 모두 지울 수 있게 한다.

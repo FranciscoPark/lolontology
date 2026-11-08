@@ -6,7 +6,14 @@ import {
   loadChampionAbilities,
   mergeCachedAbilities,
 } from '../src/catalog.js';
-import {createOntology, searchOntology, itemBuildCandidates, ontologyNeighborhood, ontologyInfo} from '../src/graph.js';
+import {
+  createOntology,
+  searchOntology,
+  itemBuildCandidates,
+  ontologyNeighborhood,
+  ontologyInfo,
+  counterItemCandidates,
+} from '../src/graph.js';
 
 test('JavaScript ontology exposes champion roles and reviewed-state traits', () => {
   const graph = createOntology(fallbackCatalog());
@@ -244,4 +251,73 @@ test('public results carry patch, evidence, review status and limits without exp
   const build = ahri.relations.find(edge => edge.relationship === 'HAS_BUILD_CANDIDATE');
   assert.equal(build.patchValidated, false);
   assert.equal(typeof ontologyNeighborhood(graph, 'Champion', 'Ahri').truncated, 'boolean');
+});
+
+test('effect relations connect enemy traits, mitigations and items', () => {
+  const graph = createOntology(fallbackCatalog());
+  const soraka = ontologyNeighborhood(graph, 'Champion', 'Soraka', {relationship: 'APPLIES_EFFECT'});
+  assert.deepEqual(
+    soraka.relations.map(edge => edge.targetId),
+    ['healing', 'magic-damage'],
+  );
+  const healing = ontologyNeighborhood(graph, 'Effect', 'healing', {relationship: 'MITIGATES'});
+  assert.deepEqual(
+    healing.relations.map(edge => [edge.direction, edge.targetId]),
+    [['incoming', 'healing-reduction']],
+  );
+  const morello = ontologyNeighborhood(graph, 'Item', '3165', {relationship: 'APPLIES_EFFECT'});
+  assert.equal(morello.relations[0].targetId, 'healing-reduction');
+  assert.equal(morello.relations[0].reviewStatus, 'prototype');
+});
+
+test('counter item traversal follows enemy effect, mitigation and item paths with thresholds', () => {
+  const graph = createOntology(fallbackCatalog());
+  const heal = counterItemCandidates(graph, ['Soraka', null], 'mage');
+  assert.deepEqual(
+    heal.candidates.map(c => c.itemId),
+    ['3165'],
+  );
+  assert.deepEqual(heal.candidates[0].path, [
+    'Champion:Soraka',
+    'Effect:healing',
+    'Effect:healing-reduction',
+    'Item:3165',
+  ]);
+  // 마법 피해 위협은 가중치 2 이상부터다. 혼합 피해는 0.5로 센다.
+  assert.deepEqual(counterItemCandidates(graph, ['Ahri'], 'mage').candidates, []);
+  assert.deepEqual(counterItemCandidates(graph, ['Ahri', 'Ornn'], 'mage').candidates, []);
+  assert.deepEqual(
+    counterItemCandidates(graph, ['Ahri', 'Ornn', 'Shen'], 'mage').candidates.map(c => c.itemId),
+    ['3102', '3135'],
+  );
+  assert.deepEqual(
+    counterItemCandidates(graph, ['Malphite', 'Sejuani'], 'marksman').candidates.map(c => [c.itemId, c.mitigation]),
+    [['3036', 'armor-penetration']],
+  );
+  // 프로필이 없는 상대는 효과를 추정하지 않는다.
+  assert.deepEqual(counterItemCandidates(graph, ['NewHero', 'Other'], 'mage'), {candidates: [], uncovered: []});
+  const tank = counterItemCandidates(graph, ['Soraka'], 'tank');
+  assert.deepEqual(tank.candidates, []);
+  assert.deepEqual(
+    tank.uncovered.map(gap => gap.threat),
+    ['healing'],
+  );
+});
+
+test('every relationship and role option offered by the ontology page is accepted by the graph', async () => {
+  const {readFileSync} = await import('node:fs');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const options = id =>
+    [
+      ...html
+        .slice(html.indexOf(`id="${id}"`))
+        .split('</select>')[0]
+        .matchAll(/value="([^"]*)"/g),
+    ].map(m => m[1]);
+  const graph = createOntology(fallbackCatalog());
+  const relationships = options('ontology-relationship');
+  assert.ok(relationships.includes('APPLIES_EFFECT') && relationships.includes('MITIGATES'));
+  for (const relationship of relationships)
+    for (const role of options('ontology-role'))
+      assert.doesNotThrow(() => searchOntology(graph, 'champion', '', '', 5, {role, relationship}), relationship);
 });

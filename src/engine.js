@@ -1,4 +1,6 @@
-import {PROFILES, ROLES, ROLE_NAMES, RULE_VERSION} from './ontology.js';
+import {PROFILES, ROLES, ROLE_NAMES, RULE_VERSION, EFFECTS} from './ontology.js';
+import {BUILD_TEMPLATES, DEFENSIVE_BOOTS, SUPPORT_START, buildFamily, isPurchasable} from './templates.js';
+import {createOntology, counterItemCandidates} from './graph.js';
 export function emptyState() {
   return {
     role: 'MID',
@@ -167,100 +169,14 @@ export function recommendPicks(state, catalog) {
     })
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 }
-const BUILDS = {
-  fighter: {
-    start: '1055',
-    core: ['3078', '3071', '3053', '3153', '3156'],
-    boots: '3047',
-    label: '공격력·체력 기반 전투',
-  },
-  tank: {
-    start: '1054',
-    core: ['3068', '3075', '3065', '3190', '3109'],
-    boots: '3047',
-    label: '체력·저항력 중심 전방 유지',
-  },
-  apfighter: {
-    start: '1056',
-    core: ['3115', '4633', '3157', '3089', '3135'],
-    boots: '3020',
-    label: '주문력 기반 지속 전투',
-  },
-  mage: {start: '1056', core: ['6655', '4645', '3089', '3157', '3135'], boots: '3020', label: '주문력 중심 스킬 피해'},
-  assassin: {start: '1055', core: ['3142', '6694', '3814', '3033', '3036'], boots: '3158', label: '공격력 기반 기습'},
-  apassassin: {
-    start: '1056',
-    core: ['4645', '3157', '3089', '3135', '3165'],
-    boots: '3020',
-    label: '주문력 기반 순간 피해',
-  },
-  critfighter: {
-    start: '1055',
-    core: ['3153', '3031', '3053', '3078', '3036', '3033'],
-    boots: '3006',
-    label: '기본 공격과 생존력',
-  },
-  marksman: {
-    start: '1055',
-    core: ['6672', '3094', '3031', '3153', '3036', '3033'],
-    boots: '3006',
-    label: '기본 공격 중심 지속 피해',
-  },
-  spellmarksman: {
-    start: '1055',
-    core: ['3078', '3004', '6694', '3031', '3036', '3153'],
-    boots: '3158',
-    label: '스킬과 기본 공격 연계',
-  },
-  onhit: {
-    start: '1055',
-    core: ['3153', '3124', '3085', '6672', '3031', '3036'],
-    boots: '3006',
-    label: '기본 공격 적중 효과',
-  },
-  supporttank: {
-    start: '3865',
-    core: ['3190', '3109', '3050', '3107', '6617'],
-    boots: '3111',
-    label: '아군 보호와 교전 보조',
-  },
-  enchanter: {start: '3865', core: ['6617', '3504', '3107', '3190', '3109'], boots: '3158', label: '아군 강화·보호'},
-};
-export const BUILD_TEMPLATES = BUILDS;
-// buildDraft가 상대 조합에 따라 직접 고르는 아이템. scripts/validate-data.mjs가 패치마다 검사한다.
-export const SITUATIONAL_ITEMS = ['3111', '3047', '3865', '3165', '3033', '3102', '3156', '3135', '3036'];
-export function fallbackBuildFamily(champion, role) {
-  const tags = new Set(champion?.tags || []);
-  if (role === 'TOP') return tags.has('Tank') ? 'tank' : tags.has('Mage') ? 'mage' : 'fighter';
-  if (role === 'JUNGLE')
-    return tags.has('Assassin') ? 'assassin' : tags.has('Tank') ? 'tank' : tags.has('Mage') ? 'apfighter' : 'fighter';
-  if (role === 'MID') return tags.has('Assassin') ? 'assassin' : tags.has('Mage') ? 'mage' : 'fighter';
-  if (role === 'BOTTOM' || role === 'ADC') return tags.has('Mage') ? 'spellmarksman' : 'marksman';
-  if (role === 'SUPPORT') return tags.has('Tank') ? 'supporttank' : 'enchanter';
-  return null;
-}
-export function isPurchasable(item, championId) {
-  return (
-    !!item &&
-    (item.demo === true ||
-      (item.maps?.['11'] === true &&
-        item.gold?.purchasable === true &&
-        item.inStore !== false &&
-        !item.requiredAlly &&
-        (!item.requiredChampion || item.requiredChampion === championId)))
-  );
-}
-export function buildDraft(state, catalog) {
+export function buildDraft(state, catalog, graph = createOntology(catalog)) {
   const id = state.allies[ROLES.indexOf(state.role)],
     p = PROFILES[id],
     champion = catalog.champions.find(entry => entry.id === id);
   if (!id) return {status: 'empty', message: '내 역할의 챔피언을 선택하면 빌드 초안을 만듭니다.'};
   if (!champion) return {status: 'unsupported', message: '챔피언 카탈로그에 이 챔피언이 없습니다.'};
-  const family =
-    state.role === 'SUPPORT' && p?.build === 'tank'
-      ? 'supporttank'
-      : p?.build || fallbackBuildFamily(champion, state.role);
-  const base = BUILDS[family],
+  const family = buildFamily(p, champion, state.role);
+  const base = BUILD_TEMPLATES[family],
     enemy = composition(state.enemies),
     warnings = [],
     omitted = [];
@@ -276,14 +192,14 @@ export function buildDraft(state, catalog) {
   let boots = base.boots,
     bootReason = '기본 빌드 유형에 따른 신발 후보';
   if (enemy.known >= 3 && enemy.damage.magic / enemy.known >= 0.7) {
-    boots = '3111';
+    boots = DEFENSIVE_BOOTS.magic;
     bootReason = '입력된 상대의 마법 피해 성향을 고려한 방어 후보';
   } else if (enemy.known >= 3 && enemy.damage.physical / enemy.known >= 0.7) {
-    boots = '3047';
+    boots = DEFENSIVE_BOOTS.physical;
     bootReason = '입력된 상대의 물리 피해 성향을 고려한 방어 후보';
   }
   let start = base.start;
-  if (state.role === 'SUPPORT') start = '3865';
+  if (state.role === 'SUPPORT') start = SUPPORT_START;
   // Jungle starters have pet-specific choices. Do not silently suggest lane starters.
   if (state.role === 'JUNGLE') {
     start = null;
@@ -293,27 +209,24 @@ export function buildDraft(state, catalog) {
     .map((itemId, i) => take(itemId, `${base.label} 템플릿 · ${i + 1}번째 검토 후보`))
     .filter(Boolean);
   const alternatives = [];
-  const add = (itemId, reason) => {
+  const add = (itemId, reason, path) => {
     const item = take(itemId, reason);
-    if (item && !core.some(i => i.id === item.id)) alternatives.push(item);
+    if (item && !core.some(i => i.id === item.id) && !alternatives.some(i => i.id === item.id))
+      alternatives.push({...item, path});
   };
-  if (enemy.traits.sustain >= 1) {
-    if (['mage', 'apfighter', 'apassassin'].includes(family))
-      add('3165', '상대 회복 성향 대응 후보. 효과 적용과 팀 내 중복을 확인하세요.');
-    else if (['marksman', 'onhit', 'spellmarksman', 'critfighter'].includes(family))
-      add('3033', '상대 회복 성향 대응 후보. 기본 경로와 교체 비교하세요.');
-    else warnings.push('상대 회복 성향이 있습니다. 회복 감소 담당을 팀 조합에 맞춰 검토하세요.');
+  // 상황별 대안은 온톨로지 경로(상대 효과 → 대응 효과 → 아이템)를 따라 고른다.
+  const counters = counterItemCandidates(graph, state.enemies, family);
+  for (const candidate of counters.candidates) {
+    const who = candidate.contributors.map(c => c.name).join('·');
+    add(
+      candidate.itemId,
+      `${who}의 ${EFFECTS[candidate.threat]} → ${EFFECTS[candidate.mitigation]} 대응 경로 · 편집 효과 주석(${candidate.reviewStatus})${candidate.note ? ` · ${candidate.note}` : ''}`,
+      candidate.path,
+    );
   }
-  if (enemy.damage.magic >= 2) {
-    if (['mage', 'apfighter', 'apassassin'].includes(family)) add('3102', '상대 마법 피해 성향에 대한 방어 대안');
-    else if (['fighter', 'assassin', 'marksman', 'onhit', 'spellmarksman'].includes(family))
-      add('3156', '상대 마법 피해 성향에 대한 방어 대안');
-  }
-  if (enemy.traits.frontline >= 2) {
-    if (['mage', 'apfighter', 'apassassin'].includes(family))
-      add('3135', '상대가 마법 저항력을 쌓을 경우 검토할 관통 대안');
-    else if (['marksman', 'onhit'].includes(family)) add('3036', '상대가 방어력을 쌓을 경우 검토할 관통 대안');
-  }
+  for (const gap of counters.uncovered)
+    if (gap.threat === 'healing')
+      warnings.push('상대 회복 성향이 있습니다. 회복 감소 담당을 팀 조합에 맞춰 검토하세요.');
   warnings.push('역할·피해 유형별 예제 템플릿입니다. 챔피언별 최적 빌드나 고정 구매 순서가 아닙니다.');
   warnings.push('상대의 실제 아이템·성장·피해 비중은 반영하지 않습니다.');
   if (enemy.unknown) warnings.push('일부 상대 챔피언은 의미 주석이 없어 평가에서 제외했습니다.');

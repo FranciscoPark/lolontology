@@ -390,9 +390,16 @@ try {
     assert((await evaluate(`document.querySelector('#ontology-patch').value`)) === '', '로드되지 않은 패치가 선택됨');
     await setQuery('Ahri', patches[1]);
     assert((await text('#ontology-results .ontology-card h3')) === '아리', '로드된 패치 필터 결과 없음');
+    await evaluate(
+      `(() => { const select = document.querySelector('#ontology-relationship'); select.value = 'APPLIES_EFFECT'; })()`,
+    );
+    await setQuery('Soraka');
+    const chips = await text('#ontology-results .relation-list');
+    assert(chips.includes('APPLIES_EFFECT') && chips.includes('회복'), `효과 관계 없음: ${chips}`);
+    await evaluate(`document.querySelector('#ontology-relationship').value = ''`);
     await setQuery('Ahri');
     await waitFor(`document.querySelectorAll('#ontology-graph [data-graph-node]').length > 0`);
-    return `빈 결과 / 의미 주석 없음 / 패치 선택지 ${patches.slice(1).join(', ')} / 그래프`;
+    return `빈 결과 / 의미 주석 없음 / 패치 선택지 ${patches.slice(1).join(', ')} / 효과 관계 / 그래프`;
   });
   await check('앱 런타임 오류 없음', async () => {
     assert(appErrors.length === 0, appErrors.join(' | '));

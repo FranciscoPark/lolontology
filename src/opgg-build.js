@@ -1,4 +1,4 @@
-import {isPurchasable} from './engine.js';
+import {isPurchasable} from './templates.js';
 import {resultText} from './opgg-ui.js';
 import {parseOpggText} from './opgg-text.js';
 
