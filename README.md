@@ -99,7 +99,14 @@ src/catalog.js             Data Dragon 로더와 명시적 예제 데이터
 src/graph.js               JavaScript 온톨로지 객체(인접 인덱스)와 검색·이웃·아이템 관계 조회
 src/opgg-ui.js             OP.GG 필터 분류·응답 표시 보조
 src/opgg-build.js          OP.GG 아이템 빌드 응답 파서·현재 패치 구매 검증
-src/app.js                 수동 입력·개인 설정·조회 UI
+src/app.js                 진입점: 세션 복원, 화면 연결, 데이터 새로고침·삭제
+src/app-state.js           화면 공유 상태·브라우저 저장소·DOM 헬퍼
+src/view-ontology.js       온톨로지 페이지(검색 카드·관계 그래프)
+src/view-draft.js          밴픽 페이지·챔피언 선택·개인 설정
+src/view-items.js          아이템 페이지(템플릿·통계 빌드·비교·그래프 후보)
+src/view-opgg.js           OP.GG 연결·조회 양식
+src/view-nav.js            페이지 전환
+src/view-data.js           데이터 상태 표시줄
 scripts/serve.mjs          로컬 정적 서버·Data Dragon API·고정 OP.GG 프록시
 scripts/data-dragon-store.mjs  Data Dragon 스냅샷 동기화·원자 저장·스킬 지연 캐시
 scripts/opgg.mjs           읽기 전용 MCP 전송·인자 검증

@@ -29,6 +29,7 @@
 - 2026-11-08: `npm run validate-data`가 저장된 스냅샷에서 템플릿·상황별 아이템 43개의 존재·구매 가능 여부와 프로필 44명을 검사한다. 16.22.1에서 모두 통과했다.
 - 2026-11-08: 아이템 페이지가 편집 템플릿과 OP.GG 통계 빌드를 같은 Data Dragon 아이템 패치에서만 비교한다(`src/build-compare.js`). 챔피언이나 아이템 패치가 다르면 비교하지 않는다. 템플릿 초안은 템플릿·상대 조합·개인 입력 근거를 따로 표시하고, 숙련도는 아이템 선택에 반영하지 않는다고 밝힌다. 16.22.1 실조회에서 아리 템플릿 코어 5개 중 4개가 통계 응답에 있었다.
 - 2026-11-08: 상황별 대안 아이템을 엔진의 조건문 대신 온톨로지 경로로 고른다. `Effect` 노드(회복, 회복 감소, 마법 피해, 마법 저항력, 전방 내구도, 마법·방어구 관통)와 `APPLIES_EFFECT`·`MITIGATES` 관계를 편집 프로필·효과 주석에서 만들고, `counterItemCandidates`가 상대 → 위협 효과 → 대응 효과 → 아이템 경로를 따라간다. 대안 카드의 근거에 사용한 경로를 표시한다. 리팩터링 전후 `buildDraft` 결과를 2,820개 조합에서 비교해 차이가 없음을 확인했다. 순환 import를 피하려고 템플릿·구매 판정을 `src/templates.js`로 분리했다.
+- 2026-11-08: 821줄이던 `src/app.js`를 공유 상태(`app-state.js`)와 페이지별 화면 모듈(`view-*.js`)로 나눴다. 진입점은 74줄이다. 긴 HTML 템플릿은 카드·행·노드 단위 함수로 나눴지만 템플릿 문자열 자체가 긴 줄은 남아 있다. 분리 후 `npm run smoke`와 `npm run qa` 17개 흐름이 통과했다.
 - 성능 관측(16.22.1, 로컬): 그래프 1,054 노드·6,965 관계 생성 약 4ms. 아이템 전체 검색은 인접 인덱스 도입 전 약 193ms에서 약 2ms로 줄었다.
 - Data Dragon backend store tests cover independent version IDs, atomic snapshot persistence/reload, lazy ability cache, patch invalidation, and last-known-good behavior after a failed update.
 - Graph tests cover ability relationships and independent champion/item patch filtering as well as existing relation, unknown-annotation, recipe/build-candidate, role filter, and result-bound behavior.

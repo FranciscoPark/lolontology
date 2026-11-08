@@ -15,6 +15,7 @@ test('bundle includes every module reachable from app.js in dependency order', a
   }
 });
 
+const escaped = name => name.replace(/[$^.*+?()[\]{}|\\]/g, '\\$&');
 test('every imported name is declared in the standalone script', async () => {
   const modules = await resolveModules();
   const {script} = await buildHtml();
@@ -23,7 +24,7 @@ test('every imported name is declared in the standalone script', async () => {
       for (const name of specifiers)
         assert.match(
           script,
-          new RegExp(`(?:function|const|let|class)\\s+${name}\\b|,\\s*${name}\\s*=`),
+          new RegExp(`(?:function|const|let|class)\\s+${escaped(name)}(?![\\w$])|,\\s*${escaped(name)}\\s*=`),
           `${name} from ${file} is not declared`,
         );
     }
