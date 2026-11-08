@@ -1,0 +1,10 @@
+.env
+.DS_Store
+node_modules/
+dist/
+.cache/
+backups/
+# Claude Code 세션 상태 (기기별 런타임 파일)
+.claude/state/
+.claude/sessions/
+.claude/memory/session-log.md
