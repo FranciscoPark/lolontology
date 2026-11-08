@@ -27,6 +27,7 @@
 - 2026-11-08: OP.GG 결과 화면은 범위 표(요청/응답/판정), 트렌드 패치 표기 주의, 라인 메타 표, 추천 미반영 사유를 표시한다. 중괄호 안 쉼표를 포함한 필드 표기가 요청에서 잘리던 문제와, 필수 게임 모드가 비어 양식 제출이 조용히 막히던 문제를 고쳤다. `npm run qa`가 실제 OP.GG 라인 메타·챔피언 분석 조회와 아이템 페이지 통계 빌드 표시까지 검사한다(16개 흐름).
 - 2026-11-08: 로컬 서버를 `createServer`로 분리해 테스트한다(`tests/serve.test.js`). 정적 파일은 `index.html`과 `src/`만 제공하고 경로 탈출·숨김 파일을 403으로 막는다. API는 `127.0.0.1`·`localhost` Host와 같은 Origin만 허용하고 오류를 JSON으로 돌려준다. 입력 오류는 400/413/415, 빈도 초과는 429, 외부 장애는 502로 구분한다. OP.GG 요청 본문은 `tool`·`arguments`만 받으며 엔드포인트 등 다른 항목은 거부한다. OP.GG MCP README에는 호출 제한·약관이 없어(라이선스 MIT) 프록시를 분당 20회로 제한했다. 소환사 프로필 도구는 허용 목록에 넣지 않는다.
 - 2026-11-08: `npm run validate-data`가 저장된 스냅샷에서 템플릿·상황별 아이템 43개의 존재·구매 가능 여부와 프로필 44명을 검사한다. 16.22.1에서 모두 통과했다.
+- 2026-11-08: 아이템 페이지가 편집 템플릿과 OP.GG 통계 빌드를 같은 Data Dragon 아이템 패치에서만 비교한다(`src/build-compare.js`). 챔피언이나 아이템 패치가 다르면 비교하지 않는다. 템플릿 초안은 템플릿·상대 조합·개인 입력 근거를 따로 표시하고, 숙련도는 아이템 선택에 반영하지 않는다고 밝힌다. 16.22.1 실조회에서 아리 템플릿 코어 5개 중 4개가 통계 응답에 있었다.
 - 성능 관측(16.22.1, 로컬): 그래프 1,054 노드·6,965 관계 생성 약 4ms. 아이템 전체 검색은 인접 인덱스 도입 전 약 193ms에서 약 2ms로 줄었다.
 - Data Dragon backend store tests cover independent version IDs, atomic snapshot persistence/reload, lazy ability cache, patch invalidation, and last-known-good behavior after a failed update.
 - Graph tests cover ability relationships and independent champion/item patch filtering as well as existing relation, unknown-annotation, recipe/build-candidate, role filter, and result-bound behavior.

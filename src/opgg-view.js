@@ -9,7 +9,7 @@ export const escapeHtml = value =>
 const SCOPE_LABELS = {region: '서버', queue: '큐', role: '포지션', tier: '티어', patch: '패치'};
 const scopeValue = value =>
   value === NOT_REQUESTABLE ? '지정 불가' : value === UNKNOWN ? '미확인' : value === 'all' ? '전체 티어' : value;
-const percent = value => (value === null ? '없음' : `${(value * 100).toFixed(1)}%`);
+export const percent = value => (value === null ? '없음' : `${(value * 100).toFixed(1)}%`);
 const number = value => (value === null ? '없음' : value.toLocaleString('ko-KR'));
 
 export function scopeTable(estimate) {

@@ -315,9 +315,12 @@ try {
       `[...document.querySelectorAll('#external-build .item-row-heading h3')].map(h => h.textContent).join(', ')`,
     );
     assert(groups.includes('코어 조합') && groups.includes('신발'), `통계 빌드 그룹: ${groups || '없음'}`);
+    const compare = await text('#external-build .build-compare .item-row-heading small');
+    assert(compare.includes('통계 응답에 있음'), `템플릿·통계 비교 없음: ${await text('#external-build')}`);
+    assert((await text('#build .build-evidence')).includes('템플릿'), '템플릿 근거 목록 없음');
     await click('[data-page="banpick"]');
     await pick('[data-side="allies"][data-index="2"]', 'Ahri');
-    return groups;
+    return `${groups} · ${compare}`;
   });
   await check('백엔드 연결 실패 시 마지막 저장 카탈로그 유지', async () => {
     await send('Network.setBlockedURLs', {urls: ['*/api/game-data*']});

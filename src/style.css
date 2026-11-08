@@ -1685,3 +1685,20 @@ select {
   padding: 10px;
   font-size: 10px;
 }
+.build-evidence {
+  margin: 0 0 14px;
+  padding-left: 16px;
+  font-size: 11px;
+  color: #c5d0c9;
+  line-height: 1.8;
+}
+.build-evidence b {
+  color: var(--gold);
+  font-weight: 500;
+  margin-right: 4px;
+}
+.build-compare {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}

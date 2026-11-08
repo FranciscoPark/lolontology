@@ -307,9 +307,35 @@ export function buildDraft(state, catalog) {
   else warnings.push('아이템 목록·가격은 공식 데이터이며, 빌드·효과 해석 규칙은 패치별 전문가 검토 전입니다.');
   if (omitted.length)
     warnings.push(`현재 데이터에서 구매 조건을 확인할 수 없어 제외: ${[...new Set(omitted)].join(', ')}`);
+  const personal = state.personal?.[id];
+  // 근거는 출처별로 분리한다. 편집 템플릿·상대 조합·개인 입력은 서로 다른 근거다.
+  const evidence = [
+    {
+      kind: 'template',
+      text: p
+        ? `빌드 유형 '${base.label}' · 편집 프로필(${p.source}, ${p.reviewStatus})`
+        : `빌드 유형 '${base.label}' · Data Dragon 태그(${(champion.tags || []).join(', ') || '없음'})와 포지션으로 추정`,
+    },
+    {
+      kind: 'composition',
+      text: enemy.total
+        ? `입력된 상대 ${enemy.total}명 중 주석 ${enemy.known}명 · 물리 성향 ${enemy.damage.physical} · 마법 성향 ${enemy.damage.magic} · 회복 ${enemy.traits.sustain} · 전방 ${enemy.traits.frontline}`
+        : '상대 조합 미입력 · 기본 템플릿만 사용',
+    },
+    {
+      kind: 'personal',
+      text:
+        personal?.mastery !== null && personal?.mastery !== undefined
+          ? `자가평가 숙련도 '${['연습 중', '기본 가능', '익숙함', '주력'][personal.mastery]}' · 아이템 선택에는 반영하지 않음`
+          : '숙련도 미입력 · 아이템 선택에는 반영하지 않음',
+    },
+  ];
   return {
     status: 'ready',
     championId: id,
+    itemVersion: catalog.itemVersion || catalog.version || null,
+    family,
+    evidence,
     label: base.label,
     start: start ? take(start, '시작 아이템 후보') : null,
     boots: take(boots, bootReason),
