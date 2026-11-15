@@ -1,0 +1,36 @@
+{
+  "localPlayerCellId": 2,
+  "myTeam": [
+    {"cellId": 0, "championId": 86, "assignedPosition": "top", "gameName": "should-not-leak", "puuid": "secret"},
+    {"cellId": 1, "championId": 64, "assignedPosition": "jungle"},
+    {"cellId": 2, "championId": 0, "championPickIntent": 61, "assignedPosition": "middle"},
+    {"cellId": 3, "championId": 222, "assignedPosition": "bottom"},
+    {"cellId": 4, "championId": 0, "assignedPosition": "utility"}
+  ],
+  "theirTeam": [
+    {"cellId": 5, "championId": 412, "assignedPosition": ""},
+    {"cellId": 6, "championId": 266, "assignedPosition": ""},
+    {"cellId": 7, "championId": 103, "assignedPosition": ""},
+    {"cellId": 8, "championId": 0, "assignedPosition": ""},
+    {"cellId": 9, "championId": 254, "assignedPosition": ""}
+  ],
+  "actions": [
+    [
+      {"actorCellId": 0, "championId": 238, "completed": true, "isAllyAction": true, "type": "ban"},
+      {"actorCellId": 5, "championId": 157, "completed": true, "isAllyAction": false, "type": "ban"},
+      {"actorCellId": 1, "championId": 134, "completed": false, "isAllyAction": true, "type": "ban"}
+    ],
+    [
+      {
+        "actorCellId": 2,
+        "championId": 61,
+        "completed": false,
+        "isAllyAction": true,
+        "isInProgress": true,
+        "type": "pick"
+      }
+    ]
+  ],
+  "bans": {"myTeamBans": [], "theirTeamBans": []},
+  "timer": {"phase": "BAN_PICK"}
+}

@@ -4,6 +4,7 @@ import {resolve, extname, sep} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {OpggClient} from './opgg.mjs';
 import {DataDragonStore} from './data-dragon-store.mjs';
+import {LcuClient, LcuUnavailable} from './lcu.mjs';
 
 const TYPES = {
   '.html': 'text/html',
@@ -56,7 +57,14 @@ async function readJson(req) {
 const INPUT_ERRORS =
   /^(지원하지 않는|필수 조회 조건|잘못된 조회 조건|문자열 조건|숫자 조건|배열 조건|중첩 조건|허용하지 않는 도구)/;
 
-export function createServer({root, gameData, opgg, startupSync = Promise.resolve(), limitOpgg = createRateLimiter()}) {
+export function createServer({
+  root,
+  gameData,
+  opgg,
+  lcu = new LcuClient(),
+  startupSync = Promise.resolve(),
+  limitOpgg = createRateLimiter(),
+}) {
   const sendJson = (res, status, payload) => {
     res.writeHead(status, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'});
     res.end(JSON.stringify(payload));
@@ -80,6 +88,16 @@ export function createServer({root, gameData, opgg, startupSync = Promise.resolv
       if (!/^[A-Za-z0-9_]+$/.test(champion) || !/^\d+\.\d+\.\d+$/.test(version))
         throw new HttpError(400, '챔피언 또는 버전 조건이 올바르지 않습니다');
       return sendJson(res, 200, await gameData.getAbilities(champion, version));
+    }
+    if (pathname === '/api/lcu/champ-select' && req.method === 'GET') {
+      if (!gameData.snapshot) throw new HttpError(503, 'Data Dragon 데이터가 준비되지 않았습니다');
+      try {
+        return sendJson(res, 200, await lcu.champSelect(gameData.snapshot.champions));
+      } catch (error) {
+        // 클라이언트가 꺼져 있는 것은 정상 상태다. 폴링이 오류로 쌓이지 않게 상태로 돌려준다.
+        if (error instanceof LcuUnavailable) return sendJson(res, 200, {status: 'not-running', reason: error.message});
+        throw error;
+      }
     }
     if (pathname === '/api/opgg/tools' && req.method === 'GET') {
       limitOpgg();

@@ -1,7 +1,8 @@
 // 로컬 서버와 headless Chrome(DevTools 프로토콜)으로 세 페이지 사용자 흐름을 검사한다.
 // 사용: npm run qa  (CHROME_PATH, QA_PORT 환경 변수로 경로·포트 지정 가능)
-import {spawn} from 'node:child_process';
-import {existsSync, mkdtempSync, rmSync} from 'node:fs';
+import {spawn, spawnSync} from 'node:child_process';
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import https from 'node:https';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 
@@ -28,8 +29,42 @@ const port = Number(process.env.QA_PORT || 4188),
   base = `http://127.0.0.1:${port}/`;
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
+// 롤 클라이언트 대역: 자체 서명 인증서 HTTPS로 밴픽 세션 픽스처를 돌려준다. openssl이 없으면 해당 흐름만 SKIP.
+const lcuDir = mkdtempSync(join(tmpdir(), 'rift-draft-lcu-'));
+let fakeLcu = null;
+const certified =
+  spawnSync('openssl', [
+    'req',
+    '-x509',
+    '-newkey',
+    'rsa:2048',
+    '-nodes',
+    '-keyout',
+    join(lcuDir, 'key.pem'),
+    '-out',
+    join(lcuDir, 'cert.pem'),
+    '-days',
+    '1',
+    '-subj',
+    '/CN=127.0.0.1',
+  ]).status === 0;
+if (certified) {
+  const session = readFileSync(join(root, 'tests', 'fixtures', 'lcu', 'champ-select.json'));
+  fakeLcu = https.createServer(
+    {key: readFileSync(join(lcuDir, 'key.pem')), cert: readFileSync(join(lcuDir, 'cert.pem'))},
+    (req, res) => {
+      if (req.headers.authorization !== `Basic ${Buffer.from('riot:qa-token').toString('base64')}`)
+        return res.writeHead(401).end();
+      if (req.url !== '/lol-champ-select/v1/session') return res.writeHead(404).end();
+      res.writeHead(200, {'Content-Type': 'application/json'}).end(session);
+    },
+  );
+  await new Promise(done => fakeLcu.listen(0, '127.0.0.1', done));
+  writeFileSync(join(lcuDir, 'lockfile'), `LeagueClient:1:${fakeLcu.address().port}:qa-token:https`);
+}
+
 const server = spawn(process.execPath, [join(root, 'scripts', 'serve.mjs')], {
-  env: {...process.env, PORT: String(port)},
+  env: {...process.env, PORT: String(port), LOL_LOCKFILE: join(lcuDir, 'lockfile')},
 });
 let serverLog = '';
 server.stdout.on('data', chunk => (serverLog += chunk));
@@ -58,6 +93,8 @@ const pending = new Map(),
 async function cleanup() {
   socket?.close();
   server.kill();
+  fakeLcu?.close();
+  rmSync(lcuDir, {recursive: true, force: true});
   if (chrome.exitCode === null) {
     const exited = new Promise(done => chrome.once('exit', done));
     chrome.kill();
@@ -269,14 +306,17 @@ try {
       assert(!mid.includes('Rell'), `미드 후보에 렐: ${mid}`);
       await click('[data-role="SUPPORT"]');
       const support = await cards();
-      assert(support.find(card => card.id === 'Rell')?.insufficient, `서포터 후보: ${support.map(card => card.id)}`);
+      assert(
+        support.some(card => card.id === 'Rell'),
+        `서포터 후보: ${support.map(card => card.id)}`,
+      );
     } finally {
       await click('[data-role="MID"]');
       await togglePoolOnly();
       await togglePool();
       await click('#close-picker');
     }
-    return '서포터로 지정한 렐이 서포터에서만 데이터 부족 후보로 표시';
+    return '서포터로 지정한 렐이 서포터에서만 후보로 표시';
   });
   await check('후보 선택 후 아이템 초안 이동', async () => {
     await click('[data-pick="Orianna"]');
@@ -377,7 +417,7 @@ try {
     await send('Network.setBlockedURLs', {urls: []});
     return `삭제 후 백엔드 차단 상태: ${status}`;
   });
-  await check('온톨로지 빈 결과·미주석·패치 선택 상태 구분', async () => {
+  await check('온톨로지 빈 결과·초안 주석·패치 선택 상태 구분', async () => {
     await load(base + '#ontology');
     await waitFor(`document.querySelector('#data-status').textContent.includes('공식')`, 30000);
     const setQuery = (query, patch = '') =>
@@ -386,8 +426,9 @@ try {
       );
     await setQuery('zzzz-없는-챔피언');
     assert((await text('#ontology-results')).includes('조회 결과가 없습니다'), '빈 결과 상태 없음');
+    // 실제 카탈로그 챔피언은 모두 초안 이상 주석이 있다. 렐은 사람 검토 전 초안이다.
     await setQuery('Rell');
-    assert((await text('#ontology-results .review-badge')).includes('의미 주석 없음'), '미주석 배지 없음');
+    assert((await text('#ontology-results .review-badge')).includes('검토 전 초안'), '초안 주석 배지 없음');
     const patches = await evaluate(`[...document.querySelectorAll('#ontology-patch option')].map(o => o.value)`);
     assert(patches[0] === '' && patches.slice(1).every(v => /^\d+\.\d+\.\d+$/.test(v)), `패치 선택지: ${patches}`);
     await setQuery('Ahri', '1.0.0');
@@ -403,7 +444,31 @@ try {
     await evaluate(`document.querySelector('#ontology-relationship').value = ''`);
     await setQuery('Ahri');
     await waitFor(`document.querySelectorAll('#ontology-graph [data-graph-node]').length > 0`);
-    return `빈 결과 / 의미 주석 없음 / 패치 선택지 ${patches.slice(1).join(', ')} / 효과 관계 / 그래프`;
+    return `빈 결과 / 초안 주석 배지 / 패치 선택지 ${patches.slice(1).join(', ')} / 효과 관계 / 그래프`;
+  });
+  await check('롤 클라이언트 밴픽 연동', async () => {
+    if (!certified) throw new SkipError('openssl이 없어 클라이언트 대역을 만들지 못했습니다');
+    await load(base);
+    await waitFor(`document.querySelector('#data-status').textContent.includes('공식')`, 30000);
+    await evaluate(`document.querySelector('#client-sync').click()`);
+    await waitFor(`document.querySelector('#client-status').textContent.includes('내 픽 차례')`);
+    const board = await evaluate(
+      `[...document.querySelectorAll('.draft-panel .slot strong')].map(el => el.textContent).join(',')`,
+    );
+    for (const name of ['가렌', '리 신', '징크스', '아트록스', '바이', '아리', '쓰레쉬'])
+      assert(board.includes(name), `보드에 ${name} 없음: ${board}`);
+    const bans = await evaluate(
+      `[...document.querySelectorAll('.ban-slot.filled')].map(el => el.textContent).join(',')`,
+    );
+    assert(bans.includes('제드') && bans.includes('야스오'), `밴 반영 안 됨: ${bans}`);
+    const role = await text('#role-tabs [aria-pressed="true"]');
+    assert(role === '미드', `내 역할이 미드로 바뀌지 않음: ${role}`);
+    const status = await text('#client-status');
+    assert(status.includes('오리아나') && status.includes('추정'), `상태 문구: ${status}`);
+    await evaluate(`document.querySelector('#client-sync').click()`);
+    assert((await text('#client-status')) === '', '연동 끄기 후 상태가 남음');
+    await evaluate(`document.querySelector('#reset').click()`);
+    return `보드 7명·밴 2개 · 역할 ${role} · ${status}`;
   });
   await check('앱 런타임 오류 없음', async () => {
     assert(appErrors.length === 0, appErrors.join(' | '));

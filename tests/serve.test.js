@@ -4,6 +4,7 @@ import http from 'node:http';
 import {resolve} from 'node:path';
 import {createServer, createRateLimiter, HttpError, MAX_QUERY_BYTES} from '../scripts/serve.mjs';
 import {OpggClient, ENDPOINT} from '../scripts/opgg.mjs';
+import {LcuUnavailable} from '../scripts/lcu.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 
@@ -177,3 +178,23 @@ test('missing catalog is 503 and provider failures are 502 with a readable messa
       assert.match(JSON.parse(failed.text).error, /외부 서비스에 연결하지 못했습니다/);
     },
   ));
+
+test('client champ select endpoint returns a status instead of an error when the client is closed', async () => {
+  const gameData = {snapshot: {mode: 'official', champions: []}, sync: async () => ({})};
+  const closed = {
+    champSelect: async () => {
+      throw new LcuUnavailable('롤 클라이언트가 실행 중이 아닙니다');
+    },
+  };
+  const server = createServer({root, gameData, opgg: {}, lcu: closed, limitOpgg: () => {}});
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  try {
+    const response = await request(server.address().port, '/api/lcu/champ-select');
+    assert.equal(response.status, 200);
+    assert.deepEqual(JSON.parse(response.text), {status: 'not-running', reason: '롤 클라이언트가 실행 중이 아닙니다'});
+    const foreign = await request(server.address().port, '/api/lcu/champ-select', {host: 'evil.example'});
+    assert.equal(foreign.status, 403);
+  } finally {
+    server.close();
+  }
+});

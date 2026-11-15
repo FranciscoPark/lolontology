@@ -218,8 +218,20 @@ h1 em {
 }
 .tools {
   display: flex;
-  gap: 23px;
+  flex-wrap: wrap;
+  gap: 12px 23px;
   align-items: center;
+}
+.client-status {
+  flex-basis: 100%;
+  text-align: right;
+}
+.client-status:empty {
+  display: none;
+}
+#client-sync[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .secondary {
   background: none;

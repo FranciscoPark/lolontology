@@ -8,6 +8,7 @@ import {renderGraphBuild} from './view-items.js';
 import {PAGES, bindNav, setPage} from './view-nav.js';
 import {bindDraft, renderDraft, renderPicker} from './view-draft.js';
 import {bindOpgg} from './view-opgg.js';
+import {bindClientSync} from './view-client.js';
 
 function renderAll() {
   renderDraft();
@@ -57,6 +58,10 @@ bindNav();
 bindOntology();
 bindDraft();
 bindOpgg();
+bindClientSync(() => {
+  renderDraft();
+  if (!$('#page-items').hidden) renderGraphBuild();
+});
 $('#refresh-data').onclick = () => refresh();
 $('#clear-local-data').onclick = clearLocalData;
 // 이미지가 없는 패치의 아이콘은 깨진 이미지 대신 숨긴다.
