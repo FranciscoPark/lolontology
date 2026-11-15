@@ -9,6 +9,7 @@ import {setPage} from './view-nav.js';
 import {api} from './view-opgg.js';
 import {opggPosition} from './opgg-ui.js';
 import {COUNTER_FIELDS, parseCounterStats, renderCounterNote} from './opgg-counters.js';
+import {roleMains, toggleRoleMain} from './role-mains.js';
 
 const PREFERENCE_LABELS = ['보통', '선호', '최선호'],
   MASTERY_LABELS = ['연습 중', '기본 가능', '익숙함', '주력'];
@@ -33,6 +34,18 @@ function banSlot(id, index) {
   const label = `밴 ${index + 1} ${id ? esc(nameOf(id)) : '선택'}`;
   const content = id ? `${avatar(id, true)}<small>${esc(nameOf(id))}</small>` : '<span>＋</span>';
   return `<button class="ban-slot ${id ? 'filled' : ''}" data-side="bans" data-index="${index}" aria-label="${label}">${content}</button>`;
+}
+
+function roleMainsRow() {
+  const role = app.state.role,
+    mains = roleMains(app.state, role);
+  const chips = mains
+    .map(
+      id =>
+        `<button class="main-chip" data-main-remove="${esc(id)}" aria-label="${ROLE_NAMES[role]} 주력에서 ${esc(nameOf(id))} 빼기">${avatar(id, true)}${esc(nameOf(id))}<span aria-hidden="true">×</span></button>`,
+    )
+    .join('');
+  return `<span class="field-label">${ROLE_NAMES[role]} 주력</span>${chips}<button class="text-button" data-main-add>${mains.length ? '+ 추가' : '+ 주력 챔피언 등록'}</button>`;
 }
 
 function compositionSummary() {
@@ -90,6 +103,7 @@ export function renderDraft() {
     role =>
       `<button data-role="${role}" class="${state.role === role ? 'active' : ''}" aria-pressed="${state.role === role}">${ROLE_NAMES[role]}</button>`,
   ).join('');
+  $('#role-mains').innerHTML = roleMainsRow();
   $('#teams').innerHTML = ROLES.map(
     (role, index) =>
       `<div class="team-row">${teamSlot('allies', index, role)}${teamSlot('enemies', index, role)}</div>`,
@@ -117,14 +131,18 @@ function openPicker(target) {
   $('#picker-title').textContent =
     target.side === 'pool'
       ? '내 챔피언 풀'
-      : target.side === 'bans'
-        ? `밴 ${target.index + 1} 선택`
-        : `${SIDE_LABELS[target.side]} ${ROLE_NAMES[ROLES[target.index]]} 선택`;
-  $('#clear-slot').hidden = target.side === 'pool';
+      : target.side === 'mains'
+        ? `${ROLE_NAMES[app.state.role]} 주력 챔피언`
+        : target.side === 'bans'
+          ? `밴 ${target.index + 1} 선택`
+          : `${SIDE_LABELS[target.side]} ${ROLE_NAMES[ROLES[target.index]]} 선택`;
+  $('#clear-slot').hidden = ['pool', 'mains'].includes(target.side);
   $('#picker-help').textContent =
     target.side === 'pool'
       ? '플레이할 수 있는 챔피언을 여러 명 선택하세요.'
-      : '이미 입력한 픽·밴은 선택할 수 없습니다.';
+      : target.side === 'mains'
+        ? '이 역할에서 주로 하는 챔피언을 고르세요. 챔피언 풀에 들어가고 이 역할·최선호로 설정됩니다.'
+        : '이미 입력한 픽·밴은 선택할 수 없습니다.';
   renderPicker();
   $('#picker').showModal();
   $('#search').focus();
@@ -142,20 +160,29 @@ function championChoice(champion, {disabled, selected}) {
 export function renderPicker() {
   const {state, catalog, pickerTarget: target} = app;
   renderPersonal();
+  const multi = ['pool', 'mains'].includes(target.side),
+    mains = roleMains(state, state.role);
+  // 주력 등록에서는 이 역할 프로필이 있는 챔피언을 먼저 보여준다.
+  const fits = champion => (target.side === 'mains' && PROFILES[champion.id]?.roles.includes(state.role) ? 0 : 1);
   const query = $('#search').value.trim().toLocaleLowerCase().replaceAll(' ', ''),
-    current = target.side === 'pool' ? null : state[target.side][target.index],
+    current = multi ? null : state[target.side][target.index],
     used = new Set([...state.allies, ...state.enemies, ...state.bans].filter(id => id !== current));
   const list = catalog.champions
     .filter(champion =>
       [champion.name, champion.id].some(text => text.toLocaleLowerCase().replaceAll(' ', '').includes(query)),
     )
-    .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    .sort((a, b) => fits(a) - fits(b) || a.name.localeCompare(b.name, 'ko'));
   $('#champion-grid').innerHTML =
     list
       .map(champion =>
         championChoice(champion, {
-          disabled: target.side !== 'pool' && used.has(champion.id),
-          selected: target.side === 'pool' ? state.pool.includes(champion.id) : current === champion.id,
+          disabled: !multi && used.has(champion.id),
+          selected:
+            target.side === 'pool'
+              ? state.pool.includes(champion.id)
+              : target.side === 'mains'
+                ? mains.includes(champion.id)
+                : current === champion.id,
         }),
       )
       .join('') || '<p class="no-results">검색 결과가 없습니다.</p>';
@@ -257,6 +284,13 @@ export function bindDraft() {
   });
   if (isStaticDemo() || location.protocol === 'file:') $('#opgg-counters').hidden = true;
   else $('#opgg-counters').onclick = loadCounters;
+  $('#role-mains').addEventListener('click', event => {
+    const remove = event.target.closest('[data-main-remove]')?.dataset.mainRemove;
+    if (remove) {
+      updateState(toggleRoleMain(app.state, remove, app.state.role));
+      toast(`${nameOf(remove)}을(를) ${ROLE_NAMES[app.state.role]} 주력에서 뺐습니다.`);
+    } else if (event.target.closest('[data-main-add]')) openPicker({side: 'mains'});
+  });
   $('#role-tabs').addEventListener('click', event => {
     const role = event.target.closest('[data-role]')?.dataset.role;
     if (role) updateState({...app.state, role});
@@ -284,6 +318,11 @@ export function bindDraft() {
     if (target.side === 'pool') {
       const pool = app.state.pool.includes(id) ? app.state.pool.filter(x => x !== id) : [...app.state.pool, id];
       updateState({...app.state, pool});
+      renderPicker();
+      return;
+    }
+    if (target.side === 'mains') {
+      updateState(toggleRoleMain(app.state, id, app.state.role));
       renderPicker();
       return;
     }

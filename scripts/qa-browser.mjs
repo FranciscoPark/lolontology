@@ -470,6 +470,30 @@ try {
     await evaluate(`document.querySelector('#reset').click()`);
     return `보드 7명·밴 2개 · 역할 ${role} · ${status}`;
   });
+  await check('역할별 주력 챔피언 등록', async () => {
+    await load(base);
+    await waitFor(`document.querySelector('#data-status').textContent.includes('공식')`, 30000);
+    await click('#role-tabs [data-role="TOP"]');
+    await click('[data-main-add]');
+    await waitFor(`document.querySelector('#picker').open`);
+    const first = await evaluate(`document.querySelector('#champion-grid [data-champion]').dataset.champion`);
+    await click('[data-champion="Garen"]');
+    await click('#close-picker');
+    const chips = await text('#role-mains');
+    assert(chips.includes('가렌'), `주력 칩 없음: ${chips}`);
+    const pool = await text('#pool-count');
+    assert(pool !== '0', '풀에 들어가지 않음');
+    const card = await evaluate(
+      `[...document.querySelectorAll('#recommendations .pick-card')].find(el => el.textContent.includes('가렌'))?.textContent || ''`,
+    );
+    assert(card.includes('가장 선호하는 픽'), `가렌 후보에 선호 근거 없음: ${card.slice(0, 120)}`);
+    await click('#role-tabs [data-role="MID"]');
+    assert(!(await text('#role-mains')).includes('가렌'), '다른 역할에 탑 주력이 보임');
+    await click('#role-tabs [data-role="TOP"]');
+    await click('[data-main-remove="Garen"]');
+    assert(!(await text('#role-mains')).includes('가렌'), '주력 해제 안 됨');
+    return `탑 주력 등록·해제 · 선택 목록 첫 챔피언 ${first}`;
+  });
   await check('OP.GG 상성 참고를 후보 카드에 표시', async () => {
     await load(base);
     await waitFor(`document.querySelector('#data-status').textContent.includes('공식')`, 30000);
