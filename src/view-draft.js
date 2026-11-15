@@ -1,11 +1,14 @@
 // 밴픽 페이지: 팀 보드, 밴, 아군 조합 특성, 픽 후보 카드, 챔피언 선택 대화상자와 개인 설정 편집.
 import {$, app, esc, nameOf, save, toast} from './app-state.js';
 import {PROFILES, ROLES, ROLE_NAMES, TRAITS} from './ontology.js';
-import {portrait} from './catalog.js';
+import {isStaticDemo, portrait} from './catalog.js';
 import {assign, composition, emptyState, normalizeState, recommendPicks} from './engine.js';
 import {renderBuild} from './view-items.js';
 import {renderData} from './view-data.js';
 import {setPage} from './view-nav.js';
+import {api} from './view-opgg.js';
+import {opggPosition} from './opgg-ui.js';
+import {COUNTER_FIELDS, parseCounterStats, renderCounterNote} from './opgg-counters.js';
 
 const PREFERENCE_LABELS = ['보통', '선호', '최선호'],
   MASTERY_LABELS = ['연습 중', '기본 가능', '익숙함', '주력'];
@@ -65,7 +68,10 @@ function pickCard(candidate, rank) {
   const heading = `<div class="pick-heading"><span class="rank">0${rank + 1}</span>${avatar(candidate.id)}<div class="pick-name"><h3>${esc(candidate.name)}</h3><small>${traits}</small></div><span class="score">${candidate.score}<small>적합 점수</small></span></div>`;
   const details = `<details><summary>근거와 한계</summary><p>${insufficient ? '의미 주석 없음 · 개인 입력만 반영' : PROFILES[candidate.id].reviewStatus === 'draft' ? '검토 전 초안 주석 · 사람 검토 대기' : '편집 주석'} · 규칙 ${esc(candidate.ruleVersion)}</p>${breakdown}${cautions}</details>`;
   const button = `<button class="select-pick" data-pick="${esc(candidate.id)}">${selected ? '선택됨 ✓' : '이 픽 선택 →'}</button>`;
-  return `<article class="pick-card ${rank === 0 ? 'top' : ''} ${insufficient ? 'insufficient' : ''}">${heading}<ul>${highlights}</ul><div class="pick-bottom">${details}${button}</div></article>`;
+  const counters = renderCounterNote(app.counterNotes[`${app.state.role}:${candidate.id}`], {
+    enemies: app.state.enemies,
+  });
+  return `<article class="pick-card ${rank === 0 ? 'top' : ''} ${insufficient ? 'insufficient' : ''}">${heading}<ul>${highlights}</ul>${counters}<div class="pick-bottom">${details}${button}</div></article>`;
 }
 
 export function renderDraft() {
@@ -185,6 +191,42 @@ const EXAMPLE_DRAFT = {
   },
 };
 
+// 화면에 보이는 상위 후보 3명의 OP.GG 상성을 차례로 조회한다. 결과는 참고 표시만 하고 점수에 넣지 않는다.
+async function loadCounters() {
+  const button = $('#opgg-counters'),
+    role = app.state.role;
+  const top = recommendPicks(app.state, app.catalog).slice(0, 3);
+  if (!top.length) return toast('상성을 조회할 후보가 없습니다.');
+  button.disabled = true;
+  try {
+    for (const [index, candidate] of top.entries()) {
+      button.textContent = `OP.GG 상성 조회 중… ${index + 1}/${top.length}`;
+      const key = `${role}:${candidate.id}`;
+      try {
+        const result = await api('/api/opgg/query', {
+          tool: 'lol_get_champion_analysis',
+          arguments: {
+            champion: candidate.id,
+            position: opggPosition(role),
+            game_mode: 'ranked',
+            desired_output_fields: COUNTER_FIELDS,
+          },
+        });
+        const stats = parseCounterStats(result.result, app.catalog);
+        app.counterNotes[key] = stats
+          ? {stats, fetchedAt: result.fetchedAt || new Date().toISOString()}
+          : {error: '응답 형식을 해석하지 못했습니다'};
+      } catch (error) {
+        app.counterNotes[key] = {error: error.message};
+      }
+      renderDraft();
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = 'OP.GG 상성 다시 보기';
+  }
+}
+
 function updateState(next) {
   app.state = next;
   save();
@@ -204,6 +246,8 @@ export function bindDraft() {
     } else app.state.personal[id] = {...current, [key]: event.target.value === '' ? null : Number(event.target.value)};
     updateState(app.state);
   });
+  if (isStaticDemo() || location.protocol === 'file:') $('#opgg-counters').hidden = true;
+  else $('#opgg-counters').onclick = loadCounters;
   $('#role-tabs').addEventListener('click', event => {
     const role = event.target.closest('[data-role]')?.dataset.role;
     if (role) updateState({...app.state, role});

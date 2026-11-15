@@ -107,6 +107,9 @@
 | 6.6 | `[QA]` `[lane:fast]` `[tdd:required]` `serve.mjs` 라우팅 테스트(경로 탈출·dotfile·Host/Origin 403·본문 크기 제한)와 템플릿 아이템 ID의 현재 패치 존재 검사(`npm run validate-data`)를 추가한다. | 서버 보안 규칙이 테스트로 고정되고, 패치 변경 시 사라진 템플릿 아이템을 명령 하나로 확인한다. | - | cc:完了 |
 | 6.7 | `[Setup]` `[lane:fast]` `[tdd:skip:tooling-config]` ESLint와 CI(test·check·build·smoke)를 추가하고 원격 저장소를 연결한다. | PR마다 네 검사가 자동 실행된다. | 0.2 | cc:blocked (원격 저장소 연결은 사용자 결정 필요. ESLint와 `.github/workflows/ci.yml`은 완료, 로컬에서 깨끗한 설치로 같은 단계 통과) |
 | 6.8 | `[UX]` `[lane:fast]` `[tdd:skip:ui-polish]` 온톨로지 패치 필터를 자유 입력 대신 로드된 버전 선택으로 바꾸고, 예제 카탈로그의 낡은 아이템 이름(6655 루덴의 동반자→루덴의 메아리)을 고친다. | 존재하지 않는 패치를 입력해 빈 결과를 보는 경로가 없다. | - | cc:完了 |
+| 7.1 | `[Feature]` `[lane:fast]` 웹 데모(GitHub Pages)와 정적 모드, Riot·OP.GG 고지문. | 서버 없이 공식 카탈로그로 추천이 동작하고 서버 전용 기능은 숨겨진다. | - | cc:完了 |
+| 7.2 | `[Feature]` `[lane:fast]` 롤 클라이언트(LCU) 밴픽 세션 읽기 연동. 로컬 실행판 전용, 읽기 전용, 소환사 식별 정보 미전달. | 밴픽 중 아군·상대·밴·내 역할이 자동으로 채워진다. | - | cc:完了 |
+| 7.3 | `[Feature]` `[lane:fast]` 상위 후보 3명의 OP.GG 상성(강한·약한 상대 상위 3, 전체 승률)을 후보 카드에 참고로 표시. 점수 미반영. | 현재 상대 팀이 상성 목록에 있으면 강조된다. | 7.2 | cc:完了 |
 
 ## 결합 전 release gates
 

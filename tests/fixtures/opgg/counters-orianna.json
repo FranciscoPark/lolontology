@@ -1,0 +1,32 @@
+{
+  "source": "https://mcp-api.op.gg/mcp",
+  "provider": {
+    "name": "OP.GG MCP Server",
+    "version": "1.0.0",
+    "protocol": "2025-06-18"
+  },
+  "tool": "lol_get_champion_analysis",
+  "arguments": {
+    "champion": "Orianna",
+    "position": "mid",
+    "game_mode": "ranked",
+    "desired_output_fields": [
+      "data.summary.average_stats.{play,win_rate,tier,rank}",
+      "data.strong_counters[].{champion_id,champion_name,play,win,my_win_rate}",
+      "data.weak_counters[].{champion_id,champion_name,play,win,my_win_rate}"
+    ]
+  },
+  "fetchedAt": "2026-11-15T05:36:40.027Z",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "class LolGetChampionAnalysis: data\nclass Data: summary,strong_counters,weak_counters\nclass Summary: average_stats\nclass AverageStats: play,win_rate,tier,rank\nclass StrongCounter: champion_id,champion_name,play,win,my_win_rate\n\nLolGetChampionAnalysis(Data(Summary(AverageStats(108390,0.47,4,164)),[StrongCounter(800,\"Mel\",625,344,0.55),StrongCounter(18,\"Tristana\",297,158,0.53),StrongCounter(10,\"Kayle\",260,138,0.53)],[StrongCounter(245,\"Ekko\",2195,952,0.43),StrongCounter(136,\"Aurelion Sol\",928,403,0.43),StrongCounter(50,\"Swain\",284,124,0.44)]))"
+      },
+      {
+        "type": "text",
+        "text": "OP.GG page: https://op.gg/lol/champions/orianna/build/mid?utm_source=opgg_mcp&utm_medium=mcp&utm_campaign=8c329a0608ca"
+      }
+    ]
+  }
+}

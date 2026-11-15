@@ -77,6 +77,9 @@ if (!/data-role="MID"/.test(rendered)) failures.push('밴픽 역할 탭이 렌�
 if (siteMode) {
   if (!/id="data-status"[^>]*>공식 정적 데이터/.test(rendered))
     failures.push('웹 데모가 game-data.json을 불러오지 못했습니다');
+  for (const id of ['client-sync', 'opgg-counters'])
+    if (!new RegExp(`id="${id}"[^>]*hidden`).test(rendered))
+      failures.push(`웹 데모에서 ${id} 버튼이 숨겨지지 않았습니다`);
   if (!/id="connect-opgg"[^>]*disabled/.test(rendered))
     failures.push('웹 데모에서 OP.GG 연결 버튼이 꺼지지 않았습니다');
 }

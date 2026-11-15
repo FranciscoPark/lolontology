@@ -470,6 +470,24 @@ try {
     await evaluate(`document.querySelector('#reset').click()`);
     return `보드 7명·밴 2개 · 역할 ${role} · ${status}`;
   });
+  await check('OP.GG 상성 참고를 후보 카드에 표시', async () => {
+    await load(base);
+    await waitFor(`document.querySelector('#data-status').textContent.includes('공식')`, 30000);
+    await evaluate(`document.querySelector('#role-tabs [data-role="MID"]').click()`);
+    await evaluate(`document.querySelector('#opgg-counters').click()`);
+    await waitFor(`!document.querySelector('#opgg-counters').disabled`, 90000);
+    const notes = await evaluate(
+      `[...document.querySelectorAll('#recommendations .counter-note')].map(el => el.textContent)`,
+    );
+    if (notes.length && notes.every(note => note.includes('조회 실패')))
+      throw new SkipError(`OP.GG 연결 불가: ${notes[0]}`);
+    assert(notes.length === 3, `상성 메모 ${notes.length}개`);
+    assert(
+      notes.some(note => note.includes('전체 승률') && note.includes('점수 미반영')),
+      notes.join(' | '),
+    );
+    return `후보 3명 · ${notes[0].slice(0, 60)}…`;
+  });
   await check('앱 런타임 오류 없음', async () => {
     assert(appErrors.length === 0, appErrors.join(' | '));
     return '없음';

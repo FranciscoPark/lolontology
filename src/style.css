@@ -1732,3 +1732,26 @@ select {
   font-size: 10px;
   color: var(--text);
 }
+
+.counter-note {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+.counter-note p {
+  margin: 0 0 6px;
+}
+.counter-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px 14px;
+}
+.counter-lists ul {
+  margin: 2px 0 0;
+  padding-left: 16px;
+}
+.counter-lists li.facing {
+  color: var(--accent);
+}

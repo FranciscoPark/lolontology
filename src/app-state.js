@@ -27,6 +27,8 @@ export const app = {
   opggTools: [],
   opggBusy: false,
   externalItemBuild: null,
+  // `${role}:${championId}` → {stats, fetchedAt} 또는 {error}. OP.GG 상성 참고 표시용.
+  counterNotes: {},
   graphRoot: null,
   graphRenderSeq: 0,
 };
