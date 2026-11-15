@@ -1,6 +1,6 @@
 // 밴픽 페이지: 팀 보드, 밴, 아군 조합 특성, 픽 후보 카드, 챔피언 선택 대화상자와 개인 설정 편집.
 import {$, app, esc, nameOf, save, toast} from './app-state.js';
-import {PROFILES, ROLES, ROLE_NAMES, TRAITS} from './ontology.js';
+import {PROFILES, ROLES, ROLE_NAMES, TRAITS, profileFor} from './ontology.js';
 import {isStaticDemo, portrait} from './catalog.js';
 import {assign, composition, emptyState, normalizeState, recommendPicks} from './engine.js';
 import {renderBuild} from './view-items.js';
@@ -50,8 +50,8 @@ function pickCard(candidate, rank) {
   const insufficient = candidate.dataStatus === 'insufficient';
   const traits = insufficient
     ? '<span class="data-badge">데이터 부족</span> 역할·조합 주석 없음'
-    : PROFILES[candidate.id].traits
-        .map(trait => TRAITS[trait])
+    : profileFor(candidate.id, app.state.role)
+        .traits.map(trait => TRAITS[trait])
         .slice(0, 3)
         .join(' · ') || '피해 중심 후보';
   const highlights =

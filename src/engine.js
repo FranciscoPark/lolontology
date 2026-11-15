@@ -1,4 +1,4 @@
-import {PROFILES, ROLES, ROLE_NAMES, RULE_VERSION, EFFECTS} from './ontology.js';
+import {PROFILES, ROLES, ROLE_NAMES, RULE_VERSION, EFFECTS, profileFor} from './ontology.js';
 import {BUILD_TEMPLATES, DEFENSIVE_BOOTS, SUPPORT_START, buildFamily, isPurchasable} from './templates.js';
 import {createOntology, counterItemCandidates} from './graph.js';
 export function emptyState() {
@@ -65,8 +65,9 @@ export function assign(state, side, index, id, catalog) {
   next[side][index] = id;
   return next;
 }
+// ids는 포지션 순서(ROLES) 슬롯 배열이다. 각 챔피언은 그 슬롯 포지션의 프로필로 평가한다.
 export function composition(ids) {
-  const profiles = ids.map(id => PROFILES[id]).filter(Boolean);
+  const profiles = ids.map((id, index) => profileFor(id, ROLES[index])).filter(Boolean);
   const traits = Object.fromEntries(
     ['engage', 'peel', 'frontline', 'waveclear', 'sustain', 'range', 'cc'].map(t => [
       t,
@@ -107,7 +108,7 @@ export function recommendPicks(state, catalog, {exclude = []} = {}) {
   const excluded = new Set(exclude.flatMap(group => RULE_GROUPS[group] || []));
   const own = ROLES.indexOf(state.role),
     other = state.allies.filter((_, i) => i !== own),
-    ally = composition(other),
+    ally = composition(state.allies.map((id, i) => (i === own ? null : id))),
     enemy = composition(state.enemies);
   const unavailable = new Set([...other, ...state.enemies, ...state.bans]);
   return catalog.champions
@@ -120,12 +121,16 @@ export function recommendPicks(state, catalog, {exclude = []} = {}) {
       return PROFILES[c.id] ? PROFILES[c.id].roles.includes(state.role) : state.pool.includes(c.id);
     })
     .map(c => {
-      const p = PROFILES[c.id],
+      const p = profileFor(c.id, state.role),
         annotated = Boolean(p),
         userRole = (state.personal?.[c.id]?.roles || []).includes(state.role),
         reasons = [
           annotated
-            ? {rule: 'role', text: `${ROLE_NAMES[state.role]} 역할 프로필이 있는 후보`, points: 30}
+            ? {
+                rule: 'role',
+                text: `${ROLE_NAMES[state.role]} 역할 프로필이 있는 후보${p.roleSpecific ? ' · 포지션별 주석 적용' : ''}`,
+                points: 30,
+              }
             : userRole
               ? {
                   rule: 'role-user',
@@ -187,7 +192,7 @@ export function recommendPicks(state, catalog, {exclude = []} = {}) {
 }
 export function buildDraft(state, catalog, graph = createOntology(catalog)) {
   const id = state.allies[ROLES.indexOf(state.role)],
-    p = PROFILES[id],
+    p = profileFor(id, state.role),
     champion = catalog.champions.find(entry => entry.id === id);
   if (!id) return {status: 'empty', message: '내 역할의 챔피언을 선택하면 빌드 초안을 만듭니다.'};
   if (!champion) return {status: 'unsupported', message: '챔피언 카탈로그에 이 챔피언이 없습니다.'};
@@ -256,7 +261,7 @@ export function buildDraft(state, catalog, graph = createOntology(catalog)) {
     {
       kind: 'template',
       text: p
-        ? `빌드 유형 '${base.label}' · 편집 프로필(${p.source}, ${p.reviewStatus})`
+        ? `빌드 유형 '${base.label}' · 편집 프로필(${p.source}, ${p.reviewStatus})${p.roleSpecific ? ` · ${ROLE_NAMES[state.role]} 포지션별 주석` : ''}`
         : `빌드 유형 '${base.label}' · Data Dragon 태그(${(champion.tags || []).join(', ') || '없음'})와 포지션으로 추정`,
     },
     {

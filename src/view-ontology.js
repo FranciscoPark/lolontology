@@ -1,6 +1,6 @@
 // 온톨로지 페이지: 챔피언·아이템 검색 결과 카드와 직접 이웃 관계 그래프(SVG).
 import {$, app, esc, setCatalog} from './app-state.js';
-import {ROLE_NAMES} from './ontology.js';
+import {ROLE_NAMES, TRAITS} from './ontology.js';
 import {abilityImage, loadChampionAbilities} from './catalog.js';
 import {ontologyInfo, ontologyNeighborhood, searchOntology} from './graph.js';
 
@@ -147,7 +147,12 @@ const REVIEW_LABELS = {reviewed: '검토됨', prototype: '초안 주석', draft:
 
 function relationChip(relation) {
   const arrow = relation.direction === 'incoming' ? '← ' : '';
-  return `<span class="relation-chip"><b>${esc(relation.relationship)}</b> ${arrow}${esc(relation.targetName || relation.targetId || '')}</span>`;
+  // 일부 포지션에서만 성립하는 관계는 그 포지션을 함께 보여준다.
+  const scope =
+    relation.partial && relation.roles?.length
+      ? ` <small>(${relation.roles.map(role => esc(ROLE_NAMES[role] || role)).join('·')})</small>`
+      : '';
+  return `<span class="relation-chip"><b>${esc(relation.relationship)}</b> ${arrow}${esc(relation.targetName || relation.targetId || '')}${scope}</span>`;
 }
 
 function championDetail(entity) {
@@ -156,7 +161,17 @@ function championDetail(entity) {
     : '역할 미검토';
   const damage =
     entity.editorialDamage && entity.editorialDamage !== 'unknown' ? esc(entity.editorialDamage) : '피해 유형 미검토';
-  return `${entity.title ? `${esc(entity.title)} · ` : ''}${roles} · ${damage}`;
+  const variants = Object.entries(entity.editorialByRole || {})
+    .map(([role, override]) => {
+      const parts = [
+        override.damage && esc(override.damage),
+        override.build && esc(override.build),
+        override.traits && override.traits.map(trait => esc(TRAITS[trait] || trait)).join('·'),
+      ].filter(Boolean);
+      return `${esc(ROLE_NAMES[role] || role)}: ${parts.join(' / ')}`;
+    })
+    .join(' · ');
+  return `${entity.title ? `${esc(entity.title)} · ` : ''}${roles} · ${damage}${variants ? ` · 포지션별 차이 ${variants}` : ''}`;
 }
 
 function itemDetail(entity) {

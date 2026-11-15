@@ -1,5 +1,6 @@
 import {
   PROFILES,
+  profileFor,
   ROLES,
   ROLE_NAMES,
   TRAITS,
@@ -86,6 +87,7 @@ export function createOntology(catalog) {
       editorialDamage: profile?.damage || 'unknown',
       editorialBuild: profile?.build || '',
       editorialTraits: profile?.traits || [],
+      editorialByRole: profile?.byRole || {},
     });
     if (championVersion)
       addEdge(keyOf(node), 'AVAILABLE_IN', `Patch:${championVersion}`, {
@@ -108,24 +110,53 @@ export function createOntology(catalog) {
         patchValidated: true,
       });
     }
-    for (const role of profile?.roles || [])
-      addEdge(keyOf(node), 'PLAYS_ROLE', `Role:${role}`, {source: profile.source, reviewStatus: profile.reviewStatus});
-    for (const trait of profile?.traits || [])
-      addEdge(keyOf(node), 'HAS_TRAIT', `Trait:${trait}`, {source: profile.source, reviewStatus: profile.reviewStatus});
+    // 포지션별 프로필이 다르면 관계에 적용 범위를 붙인다.
+    // roles: 그 관계가 성립하는 프로필 포지션, base: 프로필 밖 포지션(기본값)에서도 성립하는지.
+    const variants = profile ? [null, ...profile.roles].map(role => profileFor(champion.id, role)) : [];
+    const scope = holds => {
+      const roles = profile.roles.filter((_, index) => holds(variants[index + 1]));
+      const base = holds(variants[0]);
+      // partial: 일부 포지션에서만 성립한다 (화면에 범위를 표시).
+      return roles.length || base ? {roles, base, partial: !base || roles.length < profile.roles.length} : null;
+    };
+    for (const role of profile?.roles || []) {
+      const variant = profileFor(champion.id, role);
+      addEdge(keyOf(node), 'PLAYS_ROLE', `Role:${role}`, {
+        source: profile.source,
+        reviewStatus: profile.reviewStatus,
+        damage: variant.damage,
+        build: variant.build,
+        roleSpecific: variant.roleSpecific,
+      });
+    }
+    for (const trait of Object.keys(TRAITS)) {
+      const applies = profile && scope(variant => variant.traits.includes(trait));
+      if (applies)
+        addEdge(keyOf(node), 'HAS_TRAIT', `Trait:${trait}`, {
+          source: profile.source,
+          reviewStatus: profile.reviewStatus,
+          ...applies,
+        });
+    }
     // 편집 프로필의 특성·피해 성향에서 상대에게 주는 효과를 만든다. 프로필이 없으면 효과를 추정하지 않는다.
+    const effectWeight = (rule, variant) =>
+      rule.trait ? (variant.traits.includes(rule.trait) ? 1 : 0) : rule.damage?.[variant.damage] || 0;
     for (const rule of profile ? THREAT_RULES : []) {
-      const weight = rule.trait ? (profile.traits.includes(rule.trait) ? 1 : 0) : rule.damage?.[profile.damage] || 0;
-      if (weight)
+      // 포지션마다 가중치가 다를 수 있으므로 가중치별로 관계를 나눈다.
+      for (const weight of new Set(variants.map(variant => effectWeight(rule, variant)).filter(Boolean))) {
+        const applies = scope(variant => effectWeight(rule, variant) === weight);
         addEdge(keyOf(node), 'APPLIES_EFFECT', `Effect:${rule.effect}`, {
           source: profile.source,
           reviewStatus: profile.reviewStatus,
           weight,
-          basis: rule.trait ? `trait:${rule.trait}` : `damage:${profile.damage}`,
+          basis: rule.trait ? `trait:${rule.trait}` : 'damage',
+          ...applies,
         });
+      }
     }
 
     for (const role of profile?.roles?.length ? profile.roles : ROLES) {
-      const family = buildFamily(profile, champion, role);
+      const family = buildFamily(profileFor(champion.id, role), champion, role);
       const template = BUILD_TEMPLATES[family];
       if (!template) continue;
       const candidates = [
@@ -202,6 +233,9 @@ function edgeTargets(graph, node) {
             source: edge.source,
             reviewStatus: edge.reviewStatus,
             role: edge.role,
+            roles: edge.roles,
+            base: edge.base,
+            partial: edge.partial,
             slot: edge.slot,
             patchValidated: edge.patchValidated,
             version: edge.version ?? null,
@@ -290,12 +324,23 @@ export function itemBuildCandidates(graph, championId, role) {
 export function counterItemCandidates(graph, enemyIds, family) {
   const candidates = [],
     uncovered = [];
-  const enemies = [...new Set(enemyIds.filter(Boolean))];
+  // enemyIds는 포지션 순서 슬롯이다. 같은 챔피언은 처음 슬롯만 센다.
+  const enemies = enemyIds
+    .map((id, index) => ({id, role: ROLES[index]}))
+    .filter(({id}, index) => id && enemyIds.indexOf(id) === index);
+  // 슬롯 포지션이 그 챔피언의 프로필 포지션이면 그 포지션 범위로, 아니면 기본값 범위로 판단한다.
+  const inScope = (edge, id, role) => (PROFILES[id]?.roles.includes(role) ? edge.roles?.includes(role) : edge.base);
   for (const rule of THREAT_RULES) {
     const threatKey = `Effect:${rule.effect}`;
-    const contributors = enemies.flatMap(id =>
+    const contributors = enemies.flatMap(({id, role}) =>
       edgesOf(graph, `Champion:${id}`)
-        .filter(edge => edge.type === 'APPLIES_EFFECT' && edge.from === `Champion:${id}` && edge.to === threatKey)
+        .filter(
+          edge =>
+            edge.type === 'APPLIES_EFFECT' &&
+            edge.from === `Champion:${id}` &&
+            edge.to === threatKey &&
+            inScope(edge, id, role),
+        )
         .map(edge => ({championId: id, name: graph.nodes.get(edge.from)?.name || id, weight: edge.weight || 1})),
     );
     const weight = contributors.reduce((sum, contributor) => sum + contributor.weight, 0);

@@ -1,5 +1,6 @@
 // Editorial prototype annotations, not Riot-provided matchup data or validated patch balance.
 import {DRAFT_ROWS} from './champion-drafts.js';
+import {EXTRA_ROLES, ROLE_OVERRIDES} from './role-overrides.js';
 export const RULE_VERSION = 'draft-rules-0.1';
 export const ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'];
 export const ROLE_NAMES = {TOP: '탑', JUNGLE: '정글', MID: '미드', ADC: '바텀', SUPPORT: '서포터'};
@@ -60,15 +61,35 @@ const rows = [
   ['Nami', '나미', ['SUPPORT'], 'magic', 'enchanter', ['peel', 'sustain', 'cc']],
 ];
 // 처음 44명은 prototype, 나머지는 사람 검토 전 초안(draft)이다.
+// byRole: 포지션마다 달라지는 피해·빌드·특성 (role-overrides.js). 없으면 모든 포지션이 기본값을 쓴다.
 const profileEntries = (entries, source, reviewStatus) =>
   entries.map(([id, name, roles, damage, build, traits]) => [
     id,
-    {id, name, roles, damage, build, traits, source, reviewStatus},
+    {
+      id,
+      name,
+      roles: [...new Set([...roles, ...(EXTRA_ROLES[id] || [])])],
+      damage,
+      build,
+      traits,
+      byRole: ROLE_OVERRIDES[id] || {},
+      source,
+      reviewStatus,
+    },
   ]);
 export const PROFILES = Object.fromEntries([
   ...profileEntries(rows, 'editorial-v0', 'prototype'),
   ...profileEntries(DRAFT_ROWS, 'editorial-draft-v1', 'draft'),
 ]);
+// 그 포지션에서 쓰는 프로필. 프로필 roles 밖의 포지션(예: 미드 슬롯의 소라카)은 기본값을 쓴다.
+export function profileFor(id, role) {
+  const base = PROFILES[id];
+  if (!base) return null;
+  const override = base.roles.includes(role) ? base.byRole[role] : null;
+  return override
+    ? {...base, ...override, role, roleSpecific: true}
+    : {...base, role: role || null, roleSpecific: false};
+}
 export const SOURCE = 'https://developer.riotgames.com/docs/lol#data-dragon';
 
 // 효과 어휘와 대응 관계. 상황별 대안 아이템은 이 관계를 그래프에서 따라가 고른다.
