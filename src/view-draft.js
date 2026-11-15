@@ -46,6 +46,15 @@ function compositionSummary() {
   return `<div class="comp-title">입력된 아군의 역할 <small>${comp.known}명 분석${comp.unknown ? ` · ${comp.unknown}명 주석 없음` : ''}</small></div><div class="trait-tags">${tags}</div>`;
 }
 
+// 조합 보완 근거가 하나도 없을 때: 입력이 부족해서인지, 입력은 충분하지만 이 후보가 채울 부분이 없어서인지 구분해 알린다.
+function noFitReason() {
+  const own = ROLES.indexOf(app.state.role);
+  const allies = app.state.allies.filter((id, i) => id && i !== own).length,
+    enemies = app.state.enemies.filter(Boolean).length;
+  if (allies < 2 && enemies < 2) return '조합을 더 입력하면 후보를 구체적으로 비교합니다.';
+  return '입력된 조합 기준으로 이 후보가 추가로 채워 주는 부분은 없습니다 · 역할과 개인 설정 점수만 반영됐습니다.';
+}
+
 function pickCard(candidate, rank) {
   const insufficient = candidate.dataStatus === 'insufficient';
   const traits = insufficient
@@ -59,7 +68,7 @@ function pickCard(candidate, rank) {
       .filter(reason => reason.rule !== 'role')
       .slice(0, 3)
       .map(reason => `<li>${esc(reason.text)}</li>`)
-      .join('') || '<li>조합을 더 입력하면 후보를 구체적으로 비교합니다.</li>';
+      .join('') || `<li>${noFitReason()}</li>`;
   const breakdown = candidate.reasons
     .map(reason => `<p>${esc(reason.text)} <b>${reason.points >= 0 ? '+' : ''}${reason.points}</b></p>`)
     .join('');
