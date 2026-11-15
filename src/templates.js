@@ -1,10 +1,12 @@
 import {ITEM_EFFECTS} from './ontology.js';
 // 역할·피해 유형별 편집 아이템 템플릿과 구매 가능 판정.
 // 그래프(graph.js)와 추천 엔진(engine.js)이 함께 사용하므로 둘 중 어느 쪽에도 의존하지 않는다.
+// fighter·assassin·critfighter·marksman·supporttank·enchanter 코어는 2026-11-15 실제 데이터 점검에서
+// 같은 유형 챔피언들이 실제로 많이 사는 아이템으로 다시 골랐다(docs/real-data-report.md).
 export const BUILD_TEMPLATES = {
   fighter: {
     start: '1055',
-    core: ['3078', '3071', '3053', '3153', '3156'],
+    core: ['3078', '3071', '6631', '6333', '3026'],
     boots: '3047',
     label: '공격력·체력 기반 전투',
   },
@@ -21,7 +23,7 @@ export const BUILD_TEMPLATES = {
     label: '주문력 기반 지속 전투',
   },
   mage: {start: '1056', core: ['6655', '4645', '3089', '3157', '3135'], boots: '3020', label: '주문력 중심 스킬 피해'},
-  assassin: {start: '1055', core: ['3142', '6694', '3814', '3033', '3036'], boots: '3158', label: '공격력 기반 기습'},
+  assassin: {start: '1055', core: ['6699', '2520', '3814', '3142', '3026'], boots: '3158', label: '공격력 기반 기습'},
   apassassin: {
     start: '1056',
     core: ['4645', '3157', '3089', '3135', '3165'],
@@ -30,13 +32,13 @@ export const BUILD_TEMPLATES = {
   },
   critfighter: {
     start: '1055',
-    core: ['3153', '3031', '3053', '3078', '3036', '3033'],
+    core: ['6673', '3031', '6333', '3153', '3508', '3026'],
     boots: '3006',
     label: '기본 공격과 생존력',
   },
   marksman: {
     start: '1055',
-    core: ['6672', '3094', '3031', '3153', '3036', '3033'],
+    core: ['2523', '3031', '6675', '3036', '3072', '3026'],
     boots: '3006',
     label: '기본 공격 중심 지속 피해',
   },
@@ -54,11 +56,11 @@ export const BUILD_TEMPLATES = {
   },
   supporttank: {
     start: '3865',
-    core: ['3190', '3109', '3050', '3107', '6617'],
-    boots: '3111',
+    core: ['3190', '3109', '3050', '2524', '3110'],
+    boots: '3009',
     label: '아군 보호와 교전 보조',
   },
-  enchanter: {start: '3865', core: ['6617', '3504', '3107', '3190', '3109'], boots: '3158', label: '아군 강화·보호'},
+  enchanter: {start: '3865', core: ['6620', '6617', '3504', '3870', '3107'], boots: '3158', label: '아군 강화·보호'},
 };
 // 상대 피해 성향에 따른 방어 신발과 서포터 시작 아이템.
 export const DEFENSIVE_BOOTS = {magic: '3111', physical: '3047'};

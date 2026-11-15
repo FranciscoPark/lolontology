@@ -103,7 +103,28 @@ export const RULE_GROUPS = {
     'anti-engage',
     'sustained',
   ],
+  matchup: ['lane-matchup'],
 };
+
+// 맞라인 상성 성향. 2026-11-15 실제 데이터 점검에서 OP.GG 유리·불리 상대 357쌍의 방향을 67% 맞힌 규칙이다
+// (docs/real-data-report.md). A가 B에 유리하면 B는 A에 불리하도록 대칭으로 계산한다.
+export function laneMatchup(mine, theirs) {
+  if (!mine || !theirs) return null;
+  const factors = [];
+  const side = (profile, trait) => (profile.traits.includes(trait) ? 1 : 0);
+  for (const [trait, label, sign] of [
+    ['frontline', '전방 유지', 1],
+    ['engage', '교전 시작', 1],
+    ['range', '사거리 견제', -1],
+  ]) {
+    const diff = (side(mine, trait) - side(theirs, trait)) * sign;
+    if (diff) factors.push({diff, text: diff * sign > 0 ? `내 ${label}` : `상대 ${label}`});
+  }
+  if (mine.damage === 'magic' && theirs.damage === 'physical') factors.push({diff: 1, text: '마법 피해 대 물리 피해'});
+  if (mine.damage === 'physical' && theirs.damage === 'magic') factors.push({diff: -1, text: '물리 피해 대 마법 피해'});
+  const total = factors.reduce((sum, factor) => sum + factor.diff, 0);
+  return total ? {score: Math.max(-2, Math.min(2, total)), factors} : null;
+}
 export function recommendPicks(state, catalog, {exclude = []} = {}) {
   const excluded = new Set(exclude.flatMap(group => RULE_GROUPS[group] || []));
   const own = ROLES.indexOf(state.role),
@@ -167,6 +188,22 @@ export function recommendPicks(state, catalog, {exclude = []} = {}) {
         add('anti-engage', '상대 진입에 대응할 아군 보호 수단', 9);
       if (enemy.traits.frontline >= 2 && ['marksman', 'onhit', 'apfighter'].includes(p?.build))
         add('sustained', '상대 전방을 상대할 지속 피해 후보', 8);
+      const laneEnemy = state.enemies[own],
+        matchup = annotated && laneEnemy ? laneMatchup(p, profileFor(laneEnemy, state.role)) : null;
+      if (matchup) {
+        const list = sign =>
+          matchup.factors
+            .filter(f => Math.sign(f.diff) === sign)
+            .map(f => f.text)
+            .join(', ');
+        const detail = [list(1) && `유리: ${list(1)}`, list(-1) && `불리: ${list(-1)}`].filter(Boolean).join(' · ');
+        const enemyName = catalog.champions.find(champion => champion.id === laneEnemy)?.name || laneEnemy;
+        add(
+          'lane-matchup',
+          `맞라인 ${enemyName} 상대 ${matchup.score > 0 ? '유리' : '불리'} 성향 (${detail})`,
+          matchup.score * 4,
+        );
+      }
       if (!annotated)
         cautions.push(
           userRole

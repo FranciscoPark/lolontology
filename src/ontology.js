@@ -1,7 +1,7 @@
 // Editorial prototype annotations, not Riot-provided matchup data or validated patch balance.
 import {DRAFT_ROWS} from './champion-drafts.js';
 import {EXTRA_ROLES, ROLE_OVERRIDES} from './role-overrides.js';
-export const RULE_VERSION = 'draft-rules-0.1';
+export const RULE_VERSION = 'draft-rules-0.2';
 export const ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'];
 export const ROLE_NAMES = {TOP: '탑', JUNGLE: '정글', MID: '미드', ADC: '바텀', SUPPORT: '서포터'};
 export const TRAITS = {
@@ -33,7 +33,7 @@ const rows = [
   ['Khazix', '카직스', ['JUNGLE'], 'physical', 'assassin', []],
   ['Lillia', '릴리아', ['JUNGLE'], 'magic', 'apfighter', ['cc', 'waveclear']],
   ['Ahri', '아리', ['MID'], 'magic', 'mage', ['cc', 'waveclear']],
-  ['Annie', '애니', ['MID', 'SUPPORT'], 'magic', 'mage', ['cc', 'engage']],
+  ['Annie', '애니', ['MID'], 'magic', 'mage', ['cc', 'engage']],
   ['Orianna', '오리아나', ['MID'], 'magic', 'mage', ['waveclear', 'peel', 'cc']],
   ['Viktor', '빅토르', ['MID'], 'magic', 'mage', ['waveclear', 'range']],
   ['Lux', '럭스', ['MID', 'SUPPORT'], 'magic', 'mage', ['cc', 'range', 'peel']],

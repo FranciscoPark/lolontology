@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyState, normalizeState, assign, recommendPicks, buildDraft, composition} from '../src/engine.js';
+import {
+  emptyState,
+  normalizeState,
+  assign,
+  recommendPicks,
+  buildDraft,
+  composition,
+  laneMatchup,
+} from '../src/engine.js';
 import {readFileSync} from 'node:fs';
 import {BUILD_TEMPLATES, isPurchasable} from '../src/templates.js';
 import {fallbackCatalog, normalizeCatalog} from '../src/catalog.js';
-import {PROFILES, ROLES, TRAITS} from '../src/ontology.js';
+import {PROFILES, ROLES, TRAITS, profileFor} from '../src/ontology.js';
 import {DRAFT_ROWS} from '../src/champion-drafts.js';
 const catalog = fallbackCatalog();
 const score = (s, id) => recommendPicks(s, catalog).find(c => c.id === id);
@@ -294,4 +302,24 @@ test('every 16.22.1 catalog champion has a profile with valid vocabulary', () =>
     assert.equal(PROFILES[id].source, 'editorial-draft-v1', id);
   }
   assert.equal(PROFILES.Ahri.reviewStatus, 'prototype');
+});
+
+test('lane matchup rule is antisymmetric and scores the same-lane opponent', () => {
+  const ahri = PROFILES.Ahri,
+    malphite = PROFILES.Malphite;
+  const forward = laneMatchup(ahri, malphite),
+    backward = laneMatchup(malphite, ahri);
+  assert.ok(forward && backward);
+  assert.equal(forward.score, -backward.score);
+  assert.equal(laneMatchup(ahri, ahri), null, '같은 프로필끼리는 중립');
+  const s = emptyState();
+  s.role = 'MID';
+  s.enemies[ROLES.indexOf('MID')] = 'Malphite';
+  const reason = score(s, 'Ahri').reasons.find(r => r.rule === 'lane-matchup');
+  assert.ok(reason, '맞라인 근거 없음');
+  // 미드 말파이트는 포지션별 주석(전방 유지 없음)으로 평가한다.
+  assert.equal(reason.points, laneMatchup(profileFor('Ahri', 'MID'), profileFor('Malphite', 'MID')).score * 4);
+  s.enemies[ROLES.indexOf('MID')] = null;
+  s.enemies[ROLES.indexOf('TOP')] = 'Malphite';
+  assert.ok(!score(s, 'Ahri').reasons.some(r => r.rule === 'lane-matchup'), '다른 라인 상대는 맞라인 아님');
 });

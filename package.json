@@ -15,7 +15,8 @@
     "qa": "node scripts/qa-browser.mjs",
     "validate-data": "node scripts/validate-data.mjs",
     "lint": "eslint .",
-    "evaluate": "node scripts/evaluate.mjs"
+    "evaluate": "node scripts/evaluate.mjs",
+    "real-check": "node scripts/real-data-check.mjs"
   },
   "engines": {
     "node": ">=20.11"

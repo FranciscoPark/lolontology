@@ -17,7 +17,8 @@ export const ABLATIONS = {
   '전체 근거': [],
   '개인 입력 제외': ['personal'],
   '조합 규칙 제외': ['composition'],
-  역할만: ['personal', 'composition'],
+  '맞라인 규칙 제외': ['matchup'],
+  역할만: ['personal', 'composition', 'matchup'],
 };
 
 export function loadCatalog(version) {

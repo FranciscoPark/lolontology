@@ -136,6 +136,7 @@ npm run smoke    # dist 빌드 후 headless Chrome에서 콘솔 오류·첫 화�
 npm run qa       # 로컬 서버 + headless Chrome으로 사용자 흐름 17개 검사 (Node 22+, OP.GG 장애 시 SKIP)
 npm run validate-data  # 저장된 패치 데이터에서 템플릿 아이템·프로필 유효성 검사
 npm run evaluate       # 두 패치·212개 시나리오 제약 위반·ablation 평가 (docs/evaluation-report.md)
+npm run real-check     # OP.GG 실제 통계로 역할·피해 유형·아이템·조합·맞라인 규칙 점검 (docs/real-data-report.md, 약 4분)
 ```
 
 추천 제약·개인화·조합 반응·아이템 적합성·그래프 인덱스와 이웃 상한·MCP 허용 도구·입력 검증·JSON/SSE 처리·단일 HTML 번들 계약 테스트 포함. 실제 밸런스 품질이나 승률 개선을 검증한 테스트가 아니다. `npm run smoke`는 Chrome이 필요하며 `CHROME_PATH`로 경로를 지정할 수 있다.
