@@ -48,4 +48,4 @@
 
 ## 다음 필수 작업
 
-OP.GG 응답을 `MetaEstimate`로 정규화하고 `trends.version` 등 반환 범위 근거를 연결한다(Plans 1.1). 의미 주석 확장은 사람 검토가 필요하다(Plans 2.2). 파이프라인 계약은 [data-pipeline-contract.md](data-pipeline-contract.md)에 기록했다.
+OP.GG 응답을 `MetaEstimate`로 정규화하고 `trends.version` 등 반환 범위 근거를 연결한다(Plans 1.1). 의미 주석은 16.22.1 카탈로그 173명 전원에 있다. 44명은 prototype, 129명은 사람 검토 전 초안(`src/champion-drafts.js`, `editorial-draft-v1`)이다(Plans 2.2, 사람 검토 대기). 파이프라인 계약은 [data-pipeline-contract.md](data-pipeline-contract.md)에 기록했다.

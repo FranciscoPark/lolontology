@@ -1,5 +1,5 @@
 {
-  "description": "고정 평가 시나리오. 실제 경기 레이블이 아니라 제약·설명·민감도 검증용 입력이다.",
+  "description": "고정 평가 시나리오. 실제 경기 레이블이 아니라 제약·설명·민감도 검증용 입력이다. 실제 카탈로그의 모든 챔피언에 초안 주석이 있으므로 미주석 챔피언 동작은 tests/engine.test.js의 합성 챔피언으로 검증한다.",
   "scenarios": [
     {"id": "empty-mid", "role": "MID"},
     {
@@ -50,14 +50,14 @@
       "personal": {"Darius": {"preference": 2, "mastery": 3}}
     },
     {
-      "id": "unannotated-pool-with-role",
+      "id": "draft-pool-with-role",
       "role": "SUPPORT",
       "pool": ["Rell", "Thresh"],
       "personal": {"Rell": {"preference": 2, "mastery": 3, "roles": ["SUPPORT"]}},
       "own": "Rell"
     },
     {
-      "id": "unannotated-pool-wrong-role",
+      "id": "draft-pool-wrong-role",
       "role": "MID",
       "pool": ["Rell", "Ahri"],
       "personal": {"Rell": {"preference": 2, "mastery": 3, "roles": ["SUPPORT"]}}
@@ -69,7 +69,7 @@
       "enemies": [null, "Lillia", null, null, null]
     },
     {
-      "id": "unknown-enemies-only",
+      "id": "draft-annotated-enemies-only",
       "role": "MID",
       "enemies": ["Zoe", "Smolder", "Hwei", null, null],
       "own": "Ahri"

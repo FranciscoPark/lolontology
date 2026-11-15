@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyState, normalizeState, assign, recommendPicks, buildDraft, composition} from '../src/engine.js';
-import {isPurchasable} from '../src/templates.js';
+import {readFileSync} from 'node:fs';
+import {BUILD_TEMPLATES, isPurchasable} from '../src/templates.js';
 import {fallbackCatalog, normalizeCatalog} from '../src/catalog.js';
-import {ROLES} from '../src/ontology.js';
+import {PROFILES, ROLES, TRAITS} from '../src/ontology.js';
+import {DRAFT_ROWS} from '../src/champion-drafts.js';
 const catalog = fallbackCatalog();
 const score = (s, id) => recommendPicks(s, catalog).find(c => c.id === id);
 test('picked opponents, allies and bans cannot be recommended', () => {
@@ -193,15 +195,16 @@ test('official catalog tracks champion and item versions independently', () => {
 
 const withUnprofiled = () => {
   const c = fallbackCatalog();
-  c.champions.push({id: 'Rell', name: '렐', tags: ['Tank', 'Support']});
+  // 모든 실제 챔피언에 초안 주석이 있으므로, 새로 출시된 챔피언을 가정한 합성 항목으로 미주석 동작을 검증한다.
+  c.champions.push({id: 'NewChamp', name: '신규 챔피언', tags: ['Tank', 'Support']});
   return c;
 };
 test('unannotated champions are candidates only when the user put them in the pool', () => {
   const c = withUnprofiled();
   const s = emptyState();
-  assert(!recommendPicks(s, c).some(pick => pick.id === 'Rell'));
-  s.pool = ['Rell'];
-  const rell = recommendPicks(s, c).find(pick => pick.id === 'Rell');
+  assert(!recommendPicks(s, c).some(pick => pick.id === 'NewChamp'));
+  s.pool = ['NewChamp'];
+  const rell = recommendPicks(s, c).find(pick => pick.id === 'NewChamp');
   assert.equal(rell.dataStatus, 'insufficient');
   assert(rell.reasons.some(r => r.rule === 'role-unknown' && r.points === 0));
   assert(!rell.reasons.some(r => r.rule === 'role'));
@@ -212,9 +215,9 @@ test('unannotated pool champions get no composition credit, only personal eviden
   const s = emptyState();
   s.allies = ['Garen', 'LeeSin', null, 'Jinx', null];
   s.enemies = ['Malphite', 'Sejuani', 'Ahri', null, 'Leona'];
-  s.pool = ['Rell'];
-  s.personal = {Rell: {preference: 2, mastery: 3}};
-  const rell = recommendPicks(s, c).find(pick => pick.id === 'Rell');
+  s.pool = ['NewChamp'];
+  s.personal = {NewChamp: {preference: 2, mastery: 3}};
+  const rell = recommendPicks(s, c).find(pick => pick.id === 'NewChamp');
   assert.deepEqual(rell.reasons.map(r => r.rule).sort(), ['mastery', 'pool', 'preference', 'role-unknown']);
   assert.equal(rell.score, 5 + 10 + 24);
   assert.equal(
@@ -230,21 +233,21 @@ test('default statistics tier is unspecified so tier-less OP.GG tools are usable
 test('user-assigned play roles restrict pool champions to those roles', () => {
   const c = withUnprofiled();
   const s = emptyState();
-  s.pool = ['Rell', 'Orianna'];
+  s.pool = ['NewChamp', 'Orianna'];
   s.personal = {
-    Rell: {preference: 0, mastery: 2, roles: ['SUPPORT']},
+    NewChamp: {preference: 0, mastery: 2, roles: ['SUPPORT']},
     Orianna: {preference: 0, mastery: null, roles: ['TOP']},
   };
   s.role = 'MID';
-  assert(!recommendPicks(s, c).some(pick => pick.id === 'Rell'), '지정 역할이 아니면 미주석 챔피언은 제외');
+  assert(!recommendPicks(s, c).some(pick => pick.id === 'NewChamp'), '지정 역할이 아니면 미주석 챔피언은 제외');
   assert(!recommendPicks(s, c).some(pick => pick.id === 'Orianna'), '지정 역할이 아니면 프로필 챔피언도 제외');
   s.role = 'SUPPORT';
-  const rell = recommendPicks(s, c).find(pick => pick.id === 'Rell');
+  const rell = recommendPicks(s, c).find(pick => pick.id === 'NewChamp');
   assert.equal(rell.reasons[0].rule, 'role-user');
   assert(rell.cautions.some(t => t.includes('내가 지정한 값')));
   assert(!rell.cautions.some(t => t.includes('직접 확인')));
   // 풀 밖 챔피언의 저장된 역할은 후보 제한에 쓰지 않는다.
-  s.pool = ['Rell'];
+  s.pool = ['NewChamp'];
   s.role = 'MID';
   assert(recommendPicks(s, c).some(pick => pick.id === 'Orianna'));
 });
@@ -268,4 +271,27 @@ test('situational alternatives carry the ontology path used as their rationale',
     'Item:3165',
   ]);
   assert.match(alternative.reason, /아트록스·소라카의 회복 → 회복 감소 대응 경로/);
+});
+
+test('every 16.22.1 catalog champion has a profile with valid vocabulary', () => {
+  const {champions} = JSON.parse(readFileSync(new URL('./fixtures/ddragon/catalog-16.22.1.json', import.meta.url)));
+  assert(champions.length > 150, '픽스처 챔피언 목록');
+  const missing = champions.filter(champion => !PROFILES[champion.id]).map(champion => champion.id);
+  assert.deepEqual(missing, []);
+  for (const profile of Object.values(PROFILES)) {
+    assert(profile.roles.length >= 1 && profile.roles.every(role => ROLES.includes(role)), profile.id);
+    assert(['physical', 'magic', 'mixed'].includes(profile.damage), profile.id);
+    assert(profile.build in BUILD_TEMPLATES, `${profile.id} build ${profile.build}`);
+    assert(
+      profile.traits.every(trait => trait in TRAITS),
+      profile.id,
+    );
+    assert.equal(new Set(profile.traits).size, profile.traits.length, profile.id);
+  }
+  assert.equal(new Set(DRAFT_ROWS.map(([id]) => id)).size, DRAFT_ROWS.length, '초안 중복 없음');
+  for (const [id] of DRAFT_ROWS) {
+    assert.equal(PROFILES[id].reviewStatus, 'draft', id);
+    assert.equal(PROFILES[id].source, 'editorial-draft-v1', id);
+  }
+  assert.equal(PROFILES.Ahri.reviewStatus, 'prototype');
 });

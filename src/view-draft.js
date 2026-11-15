@@ -63,7 +63,7 @@ function pickCard(candidate, rank) {
   const cautions = candidate.cautions.map(text => `<p class="muted">${esc(text)}</p>`).join('');
   const selected = app.state.allies[ROLES.indexOf(app.state.role)] === candidate.id;
   const heading = `<div class="pick-heading"><span class="rank">0${rank + 1}</span>${avatar(candidate.id)}<div class="pick-name"><h3>${esc(candidate.name)}</h3><small>${traits}</small></div><span class="score">${candidate.score}<small>적합 점수</small></span></div>`;
-  const details = `<details><summary>근거와 한계</summary><p>${insufficient ? '의미 주석 없음 · 개인 입력만 반영' : '편집 주석'} · 규칙 ${esc(candidate.ruleVersion)}</p>${breakdown}${cautions}</details>`;
+  const details = `<details><summary>근거와 한계</summary><p>${insufficient ? '의미 주석 없음 · 개인 입력만 반영' : PROFILES[candidate.id].reviewStatus === 'draft' ? '검토 전 초안 주석 · 사람 검토 대기' : '편집 주석'} · 규칙 ${esc(candidate.ruleVersion)}</p>${breakdown}${cautions}</details>`;
   const button = `<button class="select-pick" data-pick="${esc(candidate.id)}">${selected ? '선택됨 ✓' : '이 픽 선택 →'}</button>`;
   return `<article class="pick-card ${rank === 0 ? 'top' : ''} ${insufficient ? 'insufficient' : ''}">${heading}<ul>${highlights}</ul><div class="pick-bottom">${details}${button}</div></article>`;
 }

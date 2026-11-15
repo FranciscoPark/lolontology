@@ -143,7 +143,7 @@ function syncPatchOptions() {
   select.value = versions.includes(selected) ? selected : '';
 }
 
-const REVIEW_LABELS = {reviewed: '검토됨', prototype: '초안 주석'};
+const REVIEW_LABELS = {reviewed: '검토됨', prototype: '초안 주석', draft: '검토 전 초안'};
 
 function relationChip(relation) {
   const arrow = relation.direction === 'incoming' ? '← ' : '';

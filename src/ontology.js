@@ -1,4 +1,5 @@
 // Editorial prototype annotations, not Riot-provided matchup data or validated patch balance.
+import {DRAFT_ROWS} from './champion-drafts.js';
 export const RULE_VERSION = 'draft-rules-0.1';
 export const ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'];
 export const ROLE_NAMES = {TOP: '탑', JUNGLE: '정글', MID: '미드', ADC: '바텀', SUPPORT: '서포터'};
@@ -58,12 +59,16 @@ const rows = [
   ['Soraka', '소라카', ['SUPPORT'], 'magic', 'enchanter', ['peel', 'sustain']],
   ['Nami', '나미', ['SUPPORT'], 'magic', 'enchanter', ['peel', 'sustain', 'cc']],
 ];
-export const PROFILES = Object.fromEntries(
-  rows.map(([id, name, roles, damage, build, traits]) => [
+// 처음 44명은 prototype, 나머지는 사람 검토 전 초안(draft)이다.
+const profileEntries = (entries, source, reviewStatus) =>
+  entries.map(([id, name, roles, damage, build, traits]) => [
     id,
-    {id, name, roles, damage, build, traits, source: 'editorial-v0', reviewStatus: 'prototype'},
-  ]),
-);
+    {id, name, roles, damage, build, traits, source, reviewStatus},
+  ]);
+export const PROFILES = Object.fromEntries([
+  ...profileEntries(rows, 'editorial-v0', 'prototype'),
+  ...profileEntries(DRAFT_ROWS, 'editorial-draft-v1', 'draft'),
+]);
 export const SOURCE = 'https://developer.riotgames.com/docs/lol#data-dragon';
 
 // 효과 어휘와 대응 관계. 상황별 대안 아이템은 이 관계를 그래프에서 따라가 고른다.
