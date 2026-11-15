@@ -6,10 +6,12 @@
   "scripts": {
     "start": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
+    "build:pages": "node scripts/build-pages.mjs",
     "test": "node --test",
     "check": "node scripts/check.mjs && eslint . && prettier --check .",
     "format": "prettier --write .",
     "smoke": "node scripts/build.mjs && node scripts/smoke-dist.mjs",
+    "smoke:site": "node scripts/smoke-dist.mjs --site",
     "qa": "node scripts/qa-browser.mjs",
     "validate-data": "node scripts/validate-data.mjs",
     "lint": "eslint .",

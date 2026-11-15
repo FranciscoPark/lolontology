@@ -28,6 +28,10 @@ test('class text parser names values only through declarations and rejects guess
   assert.throws(() => parseOpggText('class R: data\nclass Data: a,b\n\nR(Data(1))'), /값 1개가 선언 2개와 다름/);
   assert.throws(() => parseOpggText('class R: data\n\nR(alert(1))'), OpggTextError);
   assert.throws(() => parseOpggText('class R: data\n\nR(1) trailing'), /해석하지 않은 내용/);
+  // 실제 응답 끝의 출처 링크는 허용하되, op.gg가 아닌 링크는 여전히 거부한다.
+  const footer = 'OP.GG page: https://op.gg/lol/champions/ahri/build/mid?utm_source=opgg_mcp';
+  assert.deepEqual(parseOpggText(`class R: data\n\nR(1)${footer}`), {data: 1});
+  assert.throws(() => parseOpggText('class R: data\n\nR(1)OP.GG page: https://evil.example/'), /해석하지 않은 내용/);
 });
 
 test('provider champion names map to Data Dragon ids without guessing unknown names', () => {

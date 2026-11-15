@@ -31,6 +31,8 @@ export function parseOpggText(text, {maxLength = 4_000_000} = {}) {
     .split(/\r?\n/)
     .filter(line => !/^class\s+\w+:/.test(line))
     .join('\n')
+    // 2026-11부터 값 뒤에 붙는 출처 링크 한 줄은 데이터가 아니므로 떼어낸다. 다른 꼬리 내용은 계속 거부한다.
+    .replace(/\s*OP\.GG page:\s*https:\/\/(?:www\.)?op\.gg\/\S*\s*$/, '')
     .trim();
   let index = 0;
   const fail = message => {

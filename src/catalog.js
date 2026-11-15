@@ -134,6 +134,9 @@ export function mergeCachedAbilities(previous, next) {
     ? {...next, abilities: {...(previous.abilities || {}), ...(next.abilities || {})}}
     : next;
 }
+// GitHub Pages 웹 데모: 서버 없이 빌드 때 받은 카탈로그를 읽고 스킬은 Data Dragon에서 직접 받는다.
+export const isStaticDemo = () =>
+  typeof document !== 'undefined' && document.querySelector('meta[name="rift-deploy"]')?.content === 'static';
 export async function loadChampionAbilities(catalog, championId) {
   const version = catalog.championVersion || catalog.version;
   if (catalog.mode !== 'official' || !version) throw Error('공식 데이터 모드에서만 스킬을 불러올 수 있습니다');
@@ -141,6 +144,14 @@ export async function loadChampionAbilities(catalog, championId) {
   if (Array.isArray(cached) && cached.length) return cached;
   const champion = catalog.champions.find(entry => entry.id === championId);
   if (!champion) throw Error('챔피언을 찾을 수 없습니다');
+  if (isStaticDemo()) {
+    const response = await fetch(
+      `https://ddragon.leagueoflegends.com/cdn/${encodeURIComponent(version)}/data/ko_KR/champion/${encodeURIComponent(championId)}.json`,
+      {signal: AbortSignal.timeout(15000)},
+    );
+    if (!response.ok) throw Error(`Data Dragon HTTP ${response.status}`);
+    return normalizeChampionAbilities(version, championId, await response.json());
+  }
   const response = await fetch(
     `/api/champion-abilities?champion=${encodeURIComponent(championId)}&version=${encodeURIComponent(catalog.abilitiesVersion || version)}`,
     {signal: AbortSignal.timeout(15000)},
@@ -155,10 +166,12 @@ export async function loadChampionAbilities(catalog, championId) {
   return data.abilities;
 }
 export async function loadOfficial({refresh = false} = {}) {
-  const response = await fetch(refresh ? '/api/game-data/refresh' : '/api/game-data', {
-    method: refresh ? 'POST' : 'GET',
-    signal: AbortSignal.timeout(30000),
-  });
+  const response = isStaticDemo()
+    ? await fetch('./game-data.json', {cache: refresh ? 'no-cache' : 'default', signal: AbortSignal.timeout(30000)})
+    : await fetch(refresh ? '/api/game-data/refresh' : '/api/game-data', {
+        method: refresh ? 'POST' : 'GET',
+        signal: AbortSignal.timeout(30000),
+      });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw Error(body.error || `게임 데이터 서버 HTTP ${response.status}`);

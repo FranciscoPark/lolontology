@@ -12,6 +12,23 @@ npm start
 
 브라우저에서 `http://127.0.0.1:4173`을 연다. 로컬 서버만 수신한다. 공식 Data Dragon 동기화와 OP.GG 조회는 이 서버가 담당한다.
 
+## 웹 데모 (GitHub Pages)
+
+`npm run build:pages`는 서버 없이 볼 수 있는 데모를 `site/`에 만든다. `site/`는 단일 HTML과, 빌드할 때 받은 Data Dragon 카탈로그(`game-data.json`)로 이루어진다.
+
+| 기능 | 웹 데모 |
+|---|---|
+| 밴픽 추천·아이템 초안·온톨로지 그래프 | 동작 (배포 시점 공식 카탈로그) |
+| 챔피언 스킬 | 브라우저가 Data Dragon에서 직접 받음 |
+| OP.GG 통계 조회 | 꺼짐. 서버 프록시가 필요하므로 `npm start`로만 사용 |
+
+`.github/workflows/pages.yml`이 다음 시점에 다시 빌드·배포한다:
+- `main`에 push할 때
+- 매주 월요일 (새 패치 반영)
+- 수동 실행할 때
+
+처음 한 번은 저장소 Settings → Pages → Source를 **GitHub Actions**로 바꿔야 한다. 무료 계정에서는 공개 저장소에서만 Pages를 쓸 수 있다. `npm run smoke:site`는 `site/`를 정적 HTTP로 열어 데모 모드를 확인한다.
+
 ## JavaScript 온톨로지
 
 온톨로지는 `src/graph.js`에서 현재 Data Dragon 카탈로그와 검토 상태가 기록된 편집 프로필을 노드·관계로 조립한다. 검색과 관계 탐색, 아이템 빌드 후보 조회는 모두 브라우저의 JavaScript에서 처리한다. 고정된 소규모 카탈로그와 개인 밴픽에는 DB 서버·자격 증명·시드 절차가 필요 없다.

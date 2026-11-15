@@ -17,6 +17,7 @@ import {parseOpggItemBuild} from './opgg-build.js';
 import {normalizeOpggCall, resolveProviderChampion} from './meta-estimate.js';
 import {renderMetaResult} from './opgg-view.js';
 import {renderExternalBuild} from './view-items.js';
+import {isStaticDemo} from './catalog.js';
 
 const ANALYSIS_TOOL = 'lol_get_champion_analysis';
 const FIELD_LABELS = {
@@ -110,6 +111,10 @@ export function renderOpggFields() {
 }
 
 async function connect() {
+  if (isStaticDemo()) {
+    toast('웹 데모에서는 OP.GG 조회를 지원하지 않습니다. 로컬에서 npm start로 실행하세요.');
+    return;
+  }
   if (location.protocol === 'file:') {
     toast('OP.GG 조회는 npm start로 실행한 앱에서 사용할 수 있습니다.');
     return;
@@ -203,6 +208,11 @@ async function submit(event) {
 
 export function bindOpgg() {
   $('#connect-opgg').onclick = connect;
+  if (isStaticDemo()) {
+    $('#connect-opgg').disabled = true;
+    $('#opgg-status').textContent =
+      '웹 데모에서는 OP.GG 조회를 사용할 수 없습니다. 저장소를 받아 npm start로 실행하면 통계 조회까지 쓸 수 있습니다.';
+  }
   $('#opgg-tool').onchange = renderOpggFields;
   $('#opgg-form').onsubmit = submit;
   for (const key of ['region', 'tier', 'patch'])
